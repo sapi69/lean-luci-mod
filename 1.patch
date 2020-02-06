@@ -1,0 +1,1874 @@
+From bbf096c79eca2e8407d15fe2acfde70c8d08e9c4 Mon Sep 17 00:00:00 2001
+From: Jo-Philipp Wich <jo@mein.io>
+Date: Tue, 19 Jun 2018 17:17:04 +0200
+Subject: [PATCH] luci-mod-admin-full: cleanup markup
+
+Globally cleanup template markup to support responsive design changes in
+OpenWrt theme.
+
+Rework handling of dynamic status tables, consolidate hand-written markup,
+fix small render bugs in various places and annotate tables where needed.
+
+Signed-off-by: Jo-Philipp Wich <jo@mein.io>
+---
+ .../luasrc/view/admin_network/diagnostics.htm |  85 ++++----
+ .../view/admin_network/iface_overview.htm     |  71 +++---
+ .../view/admin_network/iface_status.htm       |  55 ++---
+ .../view/admin_network/lease_status.htm       |  38 ++--
+ .../view/admin_network/switch_status.htm      |  32 ++-
+ .../luasrc/view/admin_network/wifi_join.htm   |  48 ++--
+ .../view/admin_network/wifi_overview.htm      |  74 +++----
+ .../luasrc/view/admin_status/index.htm        | 205 +++++++++---------
+ .../luasrc/view/admin_status/iptables.htm     | 110 +++++-----
+ .../luasrc/view/admin_status/routes.htm       | 113 +++++-----
+ .../luasrc/view/admin_system/flashops.htm     | 136 ++++++------
+ .../luasrc/view/admin_system/packages.htm     | 150 ++++++-------
+ .../luasrc/view/admin_system/reboot.htm       |   3 +-
+ .../luasrc/view/admin_uci/changelog.htm       |  10 +-
+ .../luasrc/view/admin_uci/changes.htm         |  22 +-
+ 15 files changed, 577 insertions(+), 575 deletions(-)
+
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_network/diagnostics.htm b/modules/luci-mod-admin-full/luasrc/view/admin_network/diagnostics.htm
+index f4adb26069..5607e59dfb 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_network/diagnostics.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_network/diagnostics.htm
+@@ -61,55 +61,54 @@
+ 	<div class="cbi-map">
+ 		<h2 name="content"><%:Diagnostics%></h2>
+ 
+-		<fieldset class="cbi-section">
++		<div class="cbi-section">
+ 			<legend><%:Network Utilities%></legend>
+ 
+-			<br />
+-
+-			<div style="width:30%; float:left">
+-				<input style="margin: 5px 0" type="text" value="<%=ping_host%>" name="ping" /><br />
+-				<% if has_ping6 then %>
+-				<select name="ping_proto" style="width:auto">
+-					<option value="" selected="selected"><%:IPv4%></option>
+-					<option value="6"><%:IPv6%></option>
+-				</select>
+-				<input type="button" value="<%:Ping%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.ping, this.form.ping_proto.selectedIndex)" />
+-				<% else %>
+-				<input type="button" value="<%:Ping%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.ping)" />
+-				<% end %>
++			<div class="table">
++				<div class="tr">
++					<div class="td left">
++						<input style="margin: 5px 0" type="text" value="<%=ping_host%>" name="ping" /><br />
++						<% if has_ping6 then %>
++						<select name="ping_proto" style="width:auto">
++							<option value="" selected="selected"><%:IPv4%></option>
++							<option value="6"><%:IPv6%></option>
++						</select>
++						<input type="button" value="<%:Ping%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.ping, this.form.ping_proto.selectedIndex)" />
++						<% else %>
++						<input type="button" value="<%:Ping%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.ping)" />
++						<% end %>
++					</div>
++
++					<div class="td left">
++						<input style="margin: 5px 0" type="text" value="<%=route_host%>" name="traceroute" /><br />
++						<% if has_traceroute6 then %>
++						<select name="traceroute_proto" style="width:auto">
++							<option value="" selected="selected"><%:IPv4%></option>
++							<option value="6"><%:IPv6%></option>
++						</select>
++						<input type="button" value="<%:Traceroute%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.traceroute, this.form.traceroute_proto.selectedIndex)" />
++						<% else %>
++						<input type="button" value="<%:Traceroute%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.traceroute)" />
++						<% end %>
++						<% if not has_traceroute6 then %>
++							<p>&#160;</p>
++							<p><%:Install iputils-traceroute6 for IPv6 traceroute%></p>
++						<% end %>
++					</div>
++
++					<div class="td left">
++						<input style="margin: 5px 0" type="text" value="<%=dns_host%>" name="nslookup" /><br />
++						<input type="button" value="<%:Nslookup%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.nslookup)" />
++					</div>
++				</div>
+ 			</div>
+-
+-			<div style="width:33%; float:left">
+-				<input style="margin: 5px 0" type="text" value="<%=route_host%>" name="traceroute" /><br />
+-				<% if has_traceroute6 then %>
+-				<select name="traceroute_proto" style="width:auto">
+-					<option value="" selected="selected"><%:IPv4%></option>
+-					<option value="6"><%:IPv6%></option>
+-				</select>
+-				<input type="button" value="<%:Traceroute%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.traceroute, this.form.traceroute_proto.selectedIndex)" />
+-				<% else %>
+-				<input type="button" value="<%:Traceroute%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.traceroute)" />
+-				<% end %>
+-				<% if not has_traceroute6 then %>
+-					<p>&#160;</p>
+-					<p><%:Install iputils-traceroute6 for IPv6 traceroute%></p>
+-				<% end %>
+-			</div>
+-
+-			<div style="width:33%; float:left;">
+-				<input style="margin: 5px 0" type="text" value="<%=dns_host%>" name="nslookup" /><br />
+-				<input type="button" value="<%:Nslookup%>" class="cbi-button cbi-button-apply" onclick="update_status(this.form.nslookup)" />
+-			</div>
+-
+-			<br style="clear:both" /><br />
+-
+-		</fieldset>
++		</div>
+ 	</div>
+ 
+-	<fieldset class="cbi-section" style="display:none">
+-		<legend id="diag-rc-legend"><%:Collecting data...%></legend>
++	<div class="cbi-section" style="display:none">
++		<strong id="diag-rc-legend"></strong>
+ 		<span id="diag-rc-output"></span>
+-	</fieldset>
++	</div>
+ </form>
+ 
+ <%+footer%>
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_network/iface_overview.htm b/modules/luci-mod-admin-full/luasrc/view/admin_network/iface_overview.htm
+index 420e5879fa..473e2275ce 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_network/iface_overview.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_network/iface_overview.htm
+@@ -67,7 +67,7 @@
+ 	}
+ 
+ 	function iface_delete(id) {
+-		if (!confirm(<%=luci.http.write_json(translate('Really delete this interface? The deletion cannot be undone! You might lose access to this device if you are connected via this interface.'))%>))
++		if (!confirm(<%=luci.http.write_json(translate('Really delete this interface? The deletion cannot be undone! You might lose access to this device if you are connected via this interface'))%>))
+ 			return;
+ 
+ 		(new XHR()).post('<%=url('admin/network/iface_delete')%>/' + id, { token: '<%=token%>' },
+@@ -141,8 +141,8 @@
+ 						}
+ 
+ 						html += String.format(
+-							'<strong><%:RX%></strong>: %.2mB (%d <%:Pkts.%>)<br />' +
+-							'<strong><%:TX%></strong>: %.2mB (%d <%:Pkts.%>)<br />',
++							'<strong><%:RX%>:</strong> %.2mB (%d <%:Pkts.%>)<br />' +
++							'<strong><%:TX%>:</strong> %.2mB (%d <%:Pkts.%>)<br />',
+ 								ifc.rx_bytes, ifc.rx_packets,
+ 								ifc.tx_bytes, ifc.tx_packets
+ 						);
+@@ -209,46 +209,43 @@
+ </fieldset>
+ 
+ <div class="cbi-map">
+-	<fieldset class="cbi-section">
++	<div class="cbi-section">
+ 		<legend><%:Interface Overview%></legend>
+ 
+-		<div class="table cbi-section-table" style="margin:10px; empty-cells:hide">
+-			<div class="tr cbi-section-table-titles">
+-				<div class="th"><%:Network%></div>
+-				<div class="th left"><%:Status%></div>
+-				<div class="th"><%:Actions%></div>
+-			</div>
+-			<%
+-				for i, net in ipairs(netlist) do
+-					local z = net[3]
+-					local c = z and z:get_color() or "#EEEEEE"
+-					local t = z and translate("Part of zone %q" % z:name()) or translate("No zone assigned")
+-			%>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-<%=i % 2 + 1%>">
+-					<div class="td">
+-						<div class="ifacebox">
+-							<div class="ifacebox-head" style="background-color:<%=c%>" title="<%=pcdata(t)%>">
+-								<strong><%=net[1]:upper()%></strong>
+-							</div>
+-							<div class="ifacebox-body" id="<%=net[1]%>-ifc-devices">
+-								<img src="<%=resource%>/icons/ethernet_disabled.png" style="width:16px; height:16px" /><br />
+-								<small>?</small>
++		<div class="cbi-section-node">
++			<div class="table">
++				<%
++					for i, net in ipairs(netlist) do
++						local z = net[3]
++						local c = z and z:get_color() or "#EEEEEE"
++						local t = z and translate("Part of zone %q" % z:name()) or translate("No zone assigned")
++				%>
++					<div class="tr cbi-rowstyle-<%=i % 2 + 1%>">
++						<div class="td col-3 center middle">
++							<div class="ifacebox">
++								<div class="ifacebox-head" style="background-color:<%=c%>" title="<%=pcdata(t)%>">
++									<strong><%=net[1]:upper()%></strong>
++								</div>
++								<div class="ifacebox-body" id="<%=net[1]%>-ifc-devices">
++									<img src="<%=resource%>/icons/ethernet_disabled.png" style="width:16px; height:16px" /><br />
++									<small>?</small>
++								</div>
+ 							</div>
+ 						</div>
++						<div class="td col-5 left" id="<%=net[1]%>-ifc-description">
++							<em><%:Collecting data...%></em>
++						</div>
++						<div class="td cbi-section-actions">
++							<input type="button" class="cbi-button cbi-button-neutral" onclick="iface_shutdown('<%=net[1]%>', true)" title="<%:Reconnect this interface%>" value="<%:Connect%>" />
++							<input type="button" class="cbi-button cbi-button-neutral" onclick="iface_shutdown('<%=net[1]%>', false)" title="<%:Shutdown this interface%>" value="<%:Stop%>" />
++							<input type="button" class="cbi-button cbi-button-action important" onclick="location.href='<%=url("admin/network/network", net[1])%>'" title="<%:Edit this interface%>" value="<%:Edit%>" id="<%=net[1]%>-ifc-edit" />
++							<input type="button" class="cbi-button cbi-button-negative" onclick="iface_delete('<%=net[1]%>')" value="<%:Delete%>" />
++						</div>
+ 					</div>
+-					<div class="td left" id="<%=net[1]%>-ifc-description">
+-						<em><%:Collecting data...%></em>
+-					</div>
+-					<div class="td">
+-						<input type="button" class="cbi-button cbi-button-reload" style="width:100px" onclick="iface_shutdown('<%=net[1]%>', true)" title="<%:Reconnect this interface%>" value="<%:Connect%>" />
+-						<input type="button" class="cbi-button cbi-button-reset" style="width:100px" onclick="iface_shutdown('<%=net[1]%>', false)" title="<%:Shutdown this interface%>" value="<%:Stop%>" />
+-						<input type="button" class="cbi-button cbi-button-edit" style="width:100px" onclick="location.href='<%=url("admin/network/network", net[1])%>'" title="<%:Edit this interface%>" value="<%:Edit%>" id="<%=net[1]%>-ifc-edit" />
+-						<input type="button" class="cbi-button cbi-button-remove" style="width:100px" onclick="iface_delete('<%=net[1]%>')" value="<%:Delete%>" />
+-					</div>
+-				</div>
+-			<% end %>
++				<% end %>
++			</div>
+ 		</div>
+ 
+ 		<input type="button" class="cbi-button cbi-button-add" value="<%:Add new interface...%>" onclick="location.href='<%=url("admin/network/iface_add")%>'" />
+-	</fieldset>
++	</div>
+ </div>
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_network/iface_status.htm b/modules/luci-mod-admin-full/luasrc/view/admin_network/iface_status.htm
+index 58f5400da7..9c5173dae2 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_network/iface_status.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_network/iface_status.htm
+@@ -6,29 +6,18 @@
+ 		{
+ 			if (ifc && (ifc = ifc[0]))
+ 			{
+-				var html = '';
++				var s = document.getElementById('<%=self.option%>-ifc-status'),
++				    img = s.querySelector('img'),
++				    info = s.querySelector('span'),
++				    html = '<strong><%:Device%>:</strong> %h<br />'.format(ifc.ifname);
+ 
+-				var s = document.getElementById('<%=self.option%>-ifc-signal');
+-				if (s)
+-					s.innerHTML = String.format(
+-						'<img src="<%=resource%>/icons/%s%s.png" style="width:16px; height:16px" />' +
+-						'<br /><small>%s</small>',
+-							ifc.type, ifc.is_up ? '' : '_disabled',
+-							ifc.name
+-					);
+-
+-				var d = document.getElementById('<%=self.option%>-ifc-description');
+-				if (d && ifc.ifname)
++				if (ifc.ifname)
+ 				{
+ 					if (ifc.is_up)
+-					{
+ 						html += String.format('<strong><%:Uptime%>:</strong> %t<br />', ifc.uptime);
+-					}
+ 
+ 					if (ifc.macaddr)
+-					{
+ 						html += String.format('<strong><%:MAC-Address%>:</strong> %s<br />', ifc.macaddr);
+-					}
+ 
+ 					html += String.format(
+ 						'<strong><%:RX%></strong>: %.2mB (%d <%:Pkts.%>)<br />' +
+@@ -38,50 +27,40 @@
+ 					);
+ 
+ 					if (ifc.ipaddrs && ifc.ipaddrs.length)
+-					{
+ 						for (var i = 0; i < ifc.ipaddrs.length; i++)
+ 							html += String.format(
+ 								'<strong><%:IPv4%>:</strong> %s<br />',
+ 								ifc.ipaddrs[i]
+ 							);
+-					}
+ 
+ 					if (ifc.ip6addrs && ifc.ip6addrs.length)
+-					{
+ 						for (var i = 0; i < ifc.ip6addrs.length; i++)
+ 							html += String.format(
+ 								'<strong><%:IPv6%>:</strong> %s<br />',
+ 								ifc.ip6addrs[i]
+ 							);
+-					}
+-					
++
+ 					if (ifc.ip6prefix)
+-					{
+ 						html += String.format('<strong><%:IPv6-PD%>:</strong> %s<br />', ifc.ip6prefix);
+-					}
+ 
+-					d.innerHTML = html;
++					info.innerHTML = html;
+ 				}
+-				else if (d)
++				else
+ 				{
+-					d.innerHTML = '<em><%:Interface not present or not connected yet.%></em>';
++					info.innerHTML = '<em><%:Interface not present or not connected yet.%></em>';
+ 				}
++
++				img.src = '<%=resource%>/icons/%s%s.png'.format(ifc.type, ifc.is_up ? '' : '_disabled');
+ 			}
+ 		}
+ 	);
+ //]]></script>
+ 
+-<div class="table">
+-	<div class="tr cbi-section-table">
+-		<div class="td"></div>
+-		<div class="td cbi-value-field" style="min-width:16px; padding:3px; text-align:center" id="<%=self.option%>-ifc-signal">
+-			<img src="<%=resource%>/icons/ethernet_disabled.png" style="width:16px; height:16px" /><br />
+-			<small>?</small>
+-		</div>
+-		<div class="td cbi-value-field" style="vertical-align:middle; text-align:left; padding:3px" id="<%=self.option%>-ifc-description">
+-			<em><%:Collecting data...%></em>
+-		</div>
+-	</div>
+-</div>
++<span class="ifacebadge large" id="<%=self.option%>-ifc-status">
++	<img src="<%=resource%>/icons/ethernet_disabled.png" />
++	<span>
++		<em><%:Collecting data...%></em>
++	</span>
++</span>
+ 
+ <%+cbi/valuefooter%>
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_network/lease_status.htm b/modules/luci-mod-admin-full/luasrc/view/admin_network/lease_status.htm
+index 9005279a4e..a1b2c8454d 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_network/lease_status.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_network/lease_status.htm
+@@ -34,7 +34,7 @@
+ 					else
+ 						timestr = String.format('%t', st[0][i].expires);
+ 
+-					tb.appendChild(E('<div class="tr cbi-section-table-row cbi-rowstyle-%d">'.format((i % 2) + 1), [
++					tb.appendChild(E('<div class="tr cbi-rowstyle-%d">'.format((i % 2) + 1), [
+ 						E('<div class="td">', st[0][i].hostname || '?'),
+ 						E('<div class="td">', st[0][i].ipaddr),
+ 						E('<div class="td">', st[0][i].macaddr),
+@@ -43,7 +43,7 @@
+ 				}
+ 
+ 				if (tb.firstElementChild === tb.lastElementChild)
+-					tb.appendChild(E('<div class="tr cbi-section-table-row"><div class="td"><em><br /><%:There are no active leases.%></em></div></div>'));
++					tb.appendChild(E('<div class="tr"><div class="td"><em><br /><%:There are no active leases.%></em></div></div>'));
+ 			}
+ 
+ 			var tb6 = document.getElementById('lease6_status_table');
+@@ -79,8 +79,8 @@
+ 							hint = host.name;
+ 					}
+ 
+-					tb6.appendChild(E('<div class="tr cbi-section-table-row cbi-rowstyle-%d" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space: nowrap">'.format((i % 2) + 1), [
+-						E('<div class="td">', hint ? '<div style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space: nowrap">%h (%h)</div>'.format(name || '?', hint) : (name || '?')),
++					tb6.appendChild(E('<div class="tr cbi-rowstyle-%d">'.format((i % 2) + 1), [
++						E('<div class="td nowrap">', hint ? '%h (%h)'.format(name || '?', hint) : (name || '?')),
+ 						E('<div class="td">', st[1][i].ip6addr),
+ 						E('<div class="td">', st[1][i].duid),
+ 						E('<div class="td">', timestr)
+@@ -88,7 +88,7 @@
+ 				}
+ 
+ 				if (tb6.firstElementChild === tb6.lastElementChild)
+-					tb6.appendChild(E('<div class="tr cbi-section-table-row"><div class="td"><em><br /><%:There are no active leases.%></em></div></div>'));
++					tb6.appendChild(E('<div class="tr"><div class="td"><em><br /><%:There are no active leases.%></em></div></div>'));
+ 			}
+ 		}
+ 	);
+@@ -96,14 +96,14 @@
+ 
+ <fieldset class="cbi-section">
+ 	<legend><%:Active DHCP Leases%></legend>
+-	<div class="table cbi-section-table" id="lease_status_table">
+-		<div class="tr cbi-section-table-titles">
+-			<div class="th cbi-section-table-cell"><%:Hostname%></div>
+-			<div class="th cbi-section-table-cell"><%:IPv4-Address%></div>
+-			<div class="th cbi-section-table-cell"><%:MAC-Address%></div>
+-			<div class="th cbi-section-table-cell"><%:Leasetime remaining%></div>
++	<div class="table" id="lease_status_table">
++		<div class="tr">
++			<div class="th"><%:Hostname%></div>
++			<div class="th"><%:IPv4-Address%></div>
++			<div class="th"><%:MAC-Address%></div>
++			<div class="th"><%:Leasetime remaining%></div>
+ 		</div>
+-		<div class="tr cbi-section-table-row">
++		<div class="tr">
+ 			<div class="td" colspan="4"><em><br /><%:Collecting data...%></em></div>
+ 		</div>
+ 	</div>
+@@ -111,14 +111,14 @@
+ 
+ <fieldset class="cbi-section" style="display:none">
+ 	<legend><%:Active DHCPv6 Leases%></legend>
+-	<div class="table cbi-section-table" id="lease6_status_table">
+-		<div class="tr cbi-section-table-titles">
+-			<div class="th cbi-section-table-cell"><%:Host%></div>
+-			<div class="th cbi-section-table-cell"><%:IPv6-Address%></div>
+-			<div class="th cbi-section-table-cell"><%:DUID%></div>
+-			<div class="th cbi-section-table-cell"><%:Leasetime remaining%></div>
++	<div class="table" id="lease6_status_table">
++		<div class="tr">
++			<div class="th"><%:Host%></div>
++			<div class="th"><%:IPv6-Address%></div>
++			<div class="th"><%:DUID%></div>
++			<div class="th"><%:Leasetime remaining%></div>
+ 		</div>
+-		<div class="tr cbi-section-table-row">
++		<div class="tr">
+ 			<div class="td" colspan="4"><em><br /><%:Collecting data...%></em></div>
+ 		</div>
+ 	</div>
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_network/switch_status.htm b/modules/luci-mod-admin-full/luasrc/view/admin_network/switch_status.htm
+index 96fbffdb02..d3d07bead9 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_network/switch_status.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_network/switch_status.htm
+@@ -1,21 +1,39 @@
+ <script type="text/javascript">//<![CDATA[
+-	var switches = [ '<%=table.concat(self.switches, "', '")%>' ];
++	var switches = [ '<%=table.concat(self.switches, "', '")%>' ],
++	    tables = document.querySelectorAll('.cbi-section-table');
++
++	function add_status_row(table) {
++		var first_row = table.querySelector('.cbi-section-table-row');
++		if (first_row.classList.contains('port-status'))
++			return first_row;
++
++		var status_row = first_row.parentNode.insertBefore(
++			E('div', { 'class': first_row.className }), first_row);
++
++		first_row.querySelectorAll('.td').forEach(function(td) {
++			status_row.appendChild(td.cloneNode(false));
++			status_row.lastElementChild.removeAttribute('data-title');
++		});
++
++		status_row.firstElementChild.innerHTML = '<%:Port status:%>';
++		status_row.classList.add('port-status')	;
++
++		return status_row;
++	}
++
+ 	XHR.poll(5, '<%=url('admin/network/switch_status')%>/' + switches.join(','), null,
+ 		function(x, st)
+ 		{
+ 			for (var i = 0; i < switches.length; i++)
+ 			{
+ 				var ports = st[switches[i]];
+-				var th0 = document.getElementById('portstatus-' + switches[i]);
++				var tr = add_status_row(tables[i]);
+ 
+-				if (th0 && ports && ports.length)
++				if (tr && ports && ports.length)
+ 				{
+-					if (!th0.innerHTML)
+-						th0.innerHTML = '<%:Port status:%>';
+-
+ 					for (var j = 0; j < ports.length; j++)
+ 					{
+-						var th = document.getElementById('portstatus-' + switches[i] + '-' + j);
++						var th = tr.childNodes[j+1];
+ 
+ 						if (!th)
+ 							continue;
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_network/wifi_join.htm b/modules/luci-mod-admin-full/luasrc/view/admin_network/wifi_join.htm
+index e9cfb3e85b..9b93942c88 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_network/wifi_join.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_network/wifi_join.htm
+@@ -90,25 +90,43 @@
+ <h2 name="content"><%:Join Network: Wireless Scan%></h2>
+ 
+ <div class="cbi-map">
+-	<fieldset class="cbi-section">
+-		<div class="table cbi-section-table" style="empty-cells:hide">
++	<div class="cbi-section">
++		<div class="table">
++			<div class="tr table-titles">
++				<div class="th col-1 center"><%:Signal%></div>
++				<div class="th col-5 left"><%:SSID%></div>
++				<div class="th col-2 center"><%:Channel%></div>
++				<div class="th col-2 left"><%:Mode%></div>
++				<div class="th col-3 left"><%:BSSID%></div>
++				<div class="th col-2 left"><%:Encryption%></div>
++				<div class="th cbi-section-actions">&#160;</div>
++			</div>
++
+ 			<!-- scan list -->
+ 			<% for i, net in ipairs(scanlist(3)) do net.encryption = net.encryption or { } %>
+-			<div class="tr cbi-section-table-row cbi-rowstyle-<%=1 + ((i-1) % 2)%>">
+-				<div class="td cbi-value-field" style="width:16px; padding:3px">
++			<div class="tr cbi-rowstyle-<%=1 + ((i-1) % 2)%>">
++				<div class="td col-1 center">
+ 					<abbr title="<%:Signal%>: <%=net.signal%> <%:dB%> / <%:Quality%>: <%=net.quality%>/<%=net.quality_max%>">
+ 						<img src="<%=guess_wifi_signal(net)%>" /><br />
+ 						<small><%=percent_wifi_signal(net)%>%</small>
+ 					</abbr>
+ 				</div>
+-				<div class="td cbi-value-field" style="vertical-align:middle; text-align:left; padding:3px">
+-					<big><strong><%=net.ssid and utl.pcdata(net.ssid) or "<em>%s</em>" % translate("hidden")%></strong></big><br />
+-					<strong>Channel:</strong> <%=net.channel%> |
+-					<strong>Mode:</strong> <%=net.mode%> |
+-					<strong>BSSID:</strong> <%=net.bssid%> |
+-					<strong>Encryption:</strong> <%=format_wifi_encryption(net.encryption)%>
++				<div class="td col-5 left" data-title="<%:SSID%>">
++					<strong><%=net.ssid and utl.pcdata(net.ssid) or "<em>%s</em>" % translate("hidden")%></strong>
++				</div>
++				<div class="td col-2 center" data-title="<%:Channel%>">
++					<%=net.channel%>
++				</div>
++				<div class="td col-2 left" data-title="<%:Mode%>">
++					<%=net.mode%>
++				</div>
++				<div class="td col-3 left" data-title="<%:BSSID%>">
++					<%=net.bssid%>
++				</div>
++				<div class="td col-2 left" data-title="<%:Encryption%>">
++					<%=format_wifi_encryption(net.encryption)%>
+ 				</div>
+-				<div class="td cbi-value-field" style="width:40px">
++				<div class="td cbi-section-actions">
+ 					<form action="<%=url('admin/network/wireless_join')%>" method="post">
+ 						<input type="hidden" name="token" value="<%=token%>" />
+ 						<input type="hidden" name="device" value="<%=utl.pcdata(dev)%>" />
+@@ -126,23 +144,23 @@ <h2 name="content"><%:Join Network: Wireless Scan%></h2>
+ 
+ 						<input type="hidden" name="clbridge" value="<%=iw.type == "wl" and 1 or 0%>" />
+ 
+-						<input class="cbi-button cbi-button-apply" type="submit" value="<%:Join Network%>" />
++						<input class="cbi-button cbi-button-action important" type="submit" value="<%:Join Network%>" />
+ 					</form>
+ 				</div>
+ 			</div>
+ 			<% end %>
+ 			<!-- /scan list -->
+ 		</div>
+-	</fieldset>
++	</div>
+ </div>
+ <div class="cbi-page-actions right">
+ 	<form class="inline" action="<%=url("admin/network/wireless")%>" method="get">
+-		<input class="cbi-button cbi-button-reset" type="submit" value="<%:Back to overview%>" />
++		<input class="cbi-button cbi-button-neutral" type="submit" value="<%:Back to overview%>" />
+ 	</form>
+ 	<form class="inline" action="<%=url('admin/network/wireless_join')%>" method="post">
+ 		<input type="hidden" name="token" value="<%=token%>" />
+ 		<input type="hidden" name="device" value="<%=utl.pcdata(dev)%>" />
+-		<input class="cbi-button cbi-input-find" type="submit" value="<%:Repeat scan%>" />
++		<input class="cbi-button cbi-button-action" type="submit" value="<%:Repeat scan%>" />
+ 	</form>
+ </div>
+ 
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_network/wifi_overview.htm b/modules/luci-mod-admin-full/luasrc/view/admin_network/wifi_overview.htm
+index ceb810018b..8cea5e7eaf 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_network/wifi_overview.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_network/wifi_overview.htm
+@@ -138,7 +138,7 @@ <h4><%:Package libiwinfo required!%></h4>
+ 	function wifi_shutdown(id, toggle) {
+ 		var reconnect = (toggle.getAttribute('active') == 'false');
+ 
+-		if (!reconnect && !confirm(<%=luci.http.write_json(translate('Really shut down network? You might lose access to this device if you are connected via this interface.'))%>))
++		if (!reconnect && !confirm(<%=luci.http.write_json(translate('Really shut down network? You might lose access to this device if you are connected via this interface'))%>))
+ 			return;
+ 
+ 		is_reconnecting = true;
+@@ -237,13 +237,13 @@ <h4><%:Package libiwinfo required!%></h4>
+ 					{
+ 						if (!iw.disabled)
+ 						{
+-							toggle.className = 'cbi-button cbi-button-reset';
++							toggle.className = 'cbi-button cbi-button-neutral';
+ 							toggle.value = '<%:Disable%>';
+ 							toggle.title = '<%:Shutdown this network%>';
+ 						}
+ 						else
+ 						{
+-							toggle.className = 'cbi-button cbi-button-reload';
++							toggle.className = 'cbi-button cbi-button-neutral';
+ 							toggle.value = '<%:Enable%>';
+ 							toggle.title = '<%:Activate this network%>';
+ 						}
+@@ -320,7 +320,7 @@ <h4><%:Package libiwinfo required!%></h4>
+ 							    name = host ? (host.name || host.ipv4 || host.ipv6) : null,
+ 							    hint = (host && host.name && (host.ipv4 || host.ipv6)) ? (host.ipv4 || host.ipv6) : null;
+ 
+-							assoctable.appendChild(E('<div class="tr cbi-section-table-row cbi-rowstyle-%d">'.format(rowstyle), [
++							assoctable.appendChild(E('<div class="tr cbi-rowstyle-%d">'.format(rowstyle), [
+ 								E('<div class="td"><span class="ifacebadge" title="%q"><img src="<%=resource%>/icons/wifi.png" /> %h</span></div>'
+ 									.format(iw.device.name, iw.ifname)),
+ 								E('<div class="td" style="white-space:nowrap">%h</div>'
+@@ -350,7 +350,7 @@ <h4><%:Package libiwinfo required!%></h4>
+ 				{
+ 					var img = document.getElementById(dev + '-iw-upstate');
+ 					if (img)
+-						img.src = '<%=resource%>/icons/wifi_big' + (devup[dev] ? '' : '_disabled') + '.png';
++						img.src = '<%=resource%>/icons/wifi' + (devup[dev] ? '' : '_disabled') + '.png';
+ 				}
+ 			}
+ 		}
+@@ -359,37 +359,37 @@ <h4><%:Package libiwinfo required!%></h4>
+ 
+ <h2 name="content"><%:Wireless Overview%></h2>
+ 
+-<fieldset class="cbi-section" style="display:none">
++<div class="cbi-section" style="display:none">
+ 	<legend><%:Reconnecting interface%></legend>
+ 	<img src="<%=resource%>/icons/loading.gif" alt="<%:Loading%>" style="vertical-align:middle" />
+ 	<span id="iw-rc-status"><%:Waiting for changes to be applied...%></span>
+-</fieldset>
++</div>
+ 
+-<div class="cbi-map">
++<div id="cbi-wireless-overview" class="cbi-map">
+ 
+ 	<% for _, dev in ipairs(devices) do local nets = dev:get_wifinets() %>
+ 	<!-- device <%=dev:name()%> -->
+-	<fieldset class="cbi-section">
+-		<div class="table cbi-section-table" style="margin:10px; empty-cells:hide">
++	<div class="cbi-section-node">
++		<div class="table">
+ 			<!-- physical device -->
+ 			<div class="tr">
+-				<div class="td">
+-					<img src="<%=resource%>/icons/wifi_big_disabled.png" id="<%=dev:name()%>-iw-upstate" />
++				<div class="td col-2 center">
++					<span class="ifacebadge"><img src="<%=resource%>/icons/wifi_disabled.png" id="<%=dev:name()%>-iw-upstate" /> <%=dev:name()%></span>
+ 				</div>
+-				<div class="td left">
+-					<big><strong><%=guess_wifi_hw(dev)%> (<%=dev:name()%>)</strong></big><br />
++				<div class="td col-7 left">
++					<big><strong><%=guess_wifi_hw(dev)%></strong></big><br />
+ 					<span id="<%=dev:name()%>-iw-devinfo"></span>
+ 				</div>
+-				<div class="td right">
++				<div class="td cbi-section-actions">
+ 					<form action="<%=url('admin/network/wireless_join')%>" method="post" class="inline">
+ 						<input type="hidden" name="device" value="<%=dev:name()%>" />
+ 						<input type="hidden" name="token" value="<%=token%>" />
+-						<input type="submit" class="cbi-button cbi-button-find" style="width:100px" title="<%:Find and join network%>" value="<%:Scan%>" />
++						<input type="submit" class="cbi-button cbi-button-action" title="<%:Find and join network%>" value="<%:Scan%>" />
+ 					</form>
+ 					<form action="<%=url('admin/network/wireless_add')%>" method="post" class="inline">
+ 						<input type="hidden" name="device" value="<%=dev:name()%>" />
+ 						<input type="hidden" name="token" value="<%=token%>" />
+-						<input type="submit" class="cbi-button cbi-button-add" style="width:100px" title="<%:Provide new network%>" value="<%:Add%>" />
++						<input type="submit" class="cbi-button cbi-button-add" title="<%:Provide new network%>" value="<%:Add%>" />
+ 					</form>
+ 				</div>
+ 			</div>
+@@ -398,22 +398,22 @@ <h2 name="content"><%:Wireless Overview%></h2>
+ 			<!-- network list -->
+ 			<% if #nets > 0 then %>
+ 				<% for i, net in ipairs(nets) do %>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-<%=1 + ((i-1) % 2)%>">
+-					<div class="td" id="<%=net:id()%>-iw-signal">
++				<div class="tr cbi-rowstyle-<%=1 + ((i-1) % 2)%>">
++					<div class="td col-2 center" id="<%=net:id()%>-iw-signal">
+ 						<span class="ifacebadge" title="<%:Not associated%>"><img src="<%=resource%>/icons/signal-none.png" /> 0%</span>
+ 					</div>
+-					<div class="td left" id="<%=net:id()%>-iw-status">
++					<div class="td col-7 left" id="<%=net:id()%>-iw-status">
+ 						<em><%:Collecting data...%></em>
+ 					</div>
+-					<div class="td right">
+-						<input id="<%=net:id()%>-iw-toggle" type="button" class="cbi-button cbi-button-reload" style="width:100px" onclick="wifi_shutdown('<%=net:id()%>', this)" title="<%:Delete this network%>" value="<%:Enable%>" />
+-						<input type="button" class="cbi-button cbi-button-edit" style="width:100px" onclick="location.href='<%=net:adminlink()%>'" title="<%:Edit this network%>" value="<%:Edit%>" />
+-						<input type="button" class="cbi-button cbi-button-remove" style="width:100px" onclick="wifi_delete('<%=net:id()%>')" title="<%:Delete this network%>" value="<%:Remove%>" />
++					<div class="td cbi-section-actions">
++						<input id="<%=net:id()%>-iw-toggle" type="button" class="cbi-button cbi-button-neutral" onclick="wifi_shutdown('<%=net:id()%>', this)" title="<%:Enable this network%>" value="<%:Enable%>" />
++						<input type="button" class="cbi-button cbi-button-action important" onclick="location.href='<%=net:adminlink()%>'" title="<%:Edit this network%>" value="<%:Edit%>" />
++						<input type="button" class="cbi-button cbi-button-negative" onclick="wifi_delete('<%=net:id()%>')" title="<%:Delete this network%>" value="<%:Remove%>" />
+ 					</div>
+ 				</div>
+ 				<% end %>
+ 			<% else %>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-2">
++				<div class="tr cbi-rowstyle-2">
+ 					<div class="td left">
+ 						<em><%:No network configured on this device%></em>
+ 					</div>
+@@ -421,30 +421,30 @@ <h2 name="content"><%:Wireless Overview%></h2>
+ 			<% end %>
+ 			<!-- /network list -->
+ 		</div>
+-	</fieldset>
++	</div>
+ 	<!-- /device <%=dev:name()%> -->
+ 	<% end %>
+ 
+ 
+ 	<h2><%:Associated Stations%></h2>
+ 
+-	<fieldset class="cbi-section">
+-		<div class="table cbi-section-table valign-middle" style="margin:10px" id="iw-assoclist">
+-			<div class="tr cbi-section-table-titles">
+-				<div class="th cbi-section-table-cell"></div>
+-				<div class="th cbi-section-table-cell"><%:SSID%></div>
+-				<div class="th cbi-section-table-cell"><%:MAC-Address%></div>
+-				<div class="th cbi-section-table-cell"><%:Host%></div>
+-				<div class="th cbi-section-table-cell"><%:Signal%> / <%:Noise%></div>
+-				<div class="th cbi-section-table-cell"><%:RX Rate%> / <%:TX Rate%></div>
++	<div class="cbi-section-node">
++		<div class="table" id="iw-assoclist">
++			<div class="tr">
++				<div class="th"><%:Interface%></div>
++				<div class="th"><%:SSID%></div>
++				<div class="th"><%:MAC-Address%></div>
++				<div class="th"><%:Host%></div>
++				<div class="th"><%:Signal%> / <%:Noise%></div>
++				<div class="th"><%:RX Rate%> / <%:TX Rate%></div>
+ 			</div>
+-			<div class="tr cbi-section-table-row cbi-rowstyle-2">
++			<div class="tr cbi-rowstyle-2">
+ 				<div class="td">
+ 					<em><%:Collecting data...%></em>
+ 				</div>
+ 			</div>
+ 		</div>
+-	</fieldset>
++	</div>
+ </div>
+ 
+ <%+footer%>
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm b/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm
+index c5952064aa..89ed973c1c 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm
+@@ -130,7 +130,7 @@
+ 		var pc = Math.floor((100 / mn) * vn);
+ 
+ 		return String.format(
+-			'<div style="width:200px; position:relative; border:1px solid #999999">' +
++			'<div style="width:100%%; max-width:200px; position:relative; border:1px solid #999999">' +
+ 				'<div style="background-color:#CCCCCC; width:%d%%; height:15px">' +
+ 					'<div style="position:absolute; left:0; top:0; text-align:center; width:100%%; color:#000000">' +
+ 						'<small>%s / %s (%d%%)</small>' +
+@@ -205,7 +205,7 @@
+ 		return E('div', { class: 'ifacebox' }, [
+ 			E('div', { class: 'ifacebox-head center ' + (active ? 'active' : '') },
+ 				E('strong', title)),
+-			E('div', { class: 'ifacebox-body' }, childs)
++			E('div', { class: 'ifacebox-body left' }, childs)
+ 		]);
+ 	}
+ 
+@@ -334,9 +334,7 @@
+ 			var ls = document.getElementById('lease_status_table');
+ 			if (ls)
+ 			{
+-				/* clear all rows */
+-				while (ls.firstElementChild !== ls.lastElementChild)
+-					ls.removeChild(ls.lastElementChild);
++				var rows = [];
+ 
+ 				for (var i = 0; i < info.leases.length; i++)
+ 				{
+@@ -349,26 +347,23 @@
+ 					else
+ 						timestr = String.format('%t', info.leases[i].expires);
+ 
+-					ls.appendChild(E('<div class="tr cbi-section-table-row cbi-rowstyle-%d">'.format((i % 2) + 1), [
+-						E('<div class="td">', info.leases[i].hostname ? info.leases[i].hostname : '?'),
+-						E('<div class="td">', info.leases[i].ipaddr),
+-						E('<div class="td">', info.leases[i].macaddr),
+-						E('<div class="td">', timestr)
+-					]));
++					rows.push([
++						info.leases[i].hostname ? info.leases[i].hostname : '?',
++						info.leases[i].ipaddr,
++						info.leases[i].macaddr,
++						timestr
++					]);
+ 				}
+ 
+-				if (ls.firstElementChild === ls.lastElementChild)
+-					ls.appendChild(E('<div class="tr cbi-section-table-row"><div class="td"><em><br /><%:There are no active leases.%></em></div></div>'));
++				cbi_update_table(ls, rows, '<em><%:There are no active leases.%></em>');
+ 			}
+ 
+ 			var ls6 = document.getElementById('lease6_status_table');
+ 			if (ls6 && info.leases6)
+ 			{
+-				ls6.parentNode.style.display = 'block';
++				ls6.parentNode.parentNode.style.display = 'block';
+ 
+-				/* clear all rows */
+-				while (ls6.firstElementChild !== ls6.lastElementChild)
+-					ls6.removeChild(ls6.lastElementChild);
++				var rows = [];
+ 
+ 				for (var i = 0; i < info.leases6.length; i++)
+ 				{
+@@ -394,16 +389,15 @@
+ 							hint = host.name;
+ 					}
+ 
+-					ls6.appendChild(E('<div class="tr cbi-section-table-row cbi-rowstyle-%d">'.format((i % 2) + 1), [
+-						E('<div class="td nowrap">', hint ? '<div>%h (%h)</div>'.format(name || '?', hint) : (name || '?')),
+-						E('<div class="td nowrap">', info.leases6[i].ip6addr),
+-						E('<div class="td nowrap">', info.leases6[i].duid),
+-						E('<div class="td nowrap">', timestr)
+-					]));
++					rows.push([
++						hint ? '%h (%h)'.format(name || '?', hint) : (name || '?'),
++						info.leases6[i].ip6addr,
++						info.leases6[i].duid,
++						timestr
++					]);
+ 				}
+ 
+-				if (ls6.firstElementChild === ls6.lastElementChild)
+-					ls6.appendChild(E('<div class="tr cbi-section-table-row"><div class="td"><em><br /><%:There are no active leases.%></em></div></div>'));
++				cbi_update_table(ls6, rows, '<em><%:There are no active leases.%></em>');
+ 			}
+ 			<% end %>
+ 
+@@ -482,9 +476,7 @@
+ 			var ac = document.getElementById('wifi_assoc_table');
+ 			if (ac)
+ 			{
+-				/* clear all rows */
+-				while (ac.firstElementChild !== ac.lastElementChild)
+-					ac.removeChild(ac.lastElementChild);
++				var rows = [];
+ 
+ 				assoclist.sort(function(a, b) {
+ 					return (a.name == b.name)
+@@ -512,27 +504,30 @@
+ 					    name = host ? (host.name || host.ipv4 || host.ipv6) : null,
+ 					    hint = (host && host.name && (host.ipv4 || host.ipv6)) ? (host.ipv4 || host.ipv6) : null;
+ 
+-					ac.appendChild(E('<div class="tr cbi-section-table-row cbi-rowstyle-%d">'.format(1 + (i % 2)), [
+-						E('<div class="td"><span class="ifacebadge" title="%q"><img src="<%=resource%>/icons/wifi.png" /> %h</span></div>'
+-							.format(assoclist[i].radio, assoclist[i].ifname)),
+-						E('<div class="td"><a href="%s" style="white-space:nowrap">%h</a></div>'
+-							.format(assoclist[i].link, assoclist[i].name)),
+-						E('<div class="td">',
+-							assoclist[i].bssid),
+-						E('<div class="td nowrap">',
+-							hint ? '<div>%h (%h)</div>'.format(name || '?', hint) : (name || '?')),
+-						E('<div class="td"><span class="ifacebadge" title="<%:Signal%>: %d <%:dBm%> / <%:Noise%>: %d <%:dBm%> / <%:SNR%>: %d"><img src="%s" /> %d / %d <%:dBm%></span></div>'
+-							.format(assoclist[i].signal, assoclist[i].noise, assoclist[i].signal - assoclist[i].noise, icon, assoclist[i].signal, assoclist[i].noise)),
+-						E('<div class="td nowrap">', [
+-							E('<span style="white-space:nowrap">', wifirate(assoclist[i], true)),
+-							E('<br />'),
+-							E('<span style="white-space:nowrap">', wifirate(assoclist[i], false))
++					rows.push([
++						'<span class="ifacebadge" title="%q"><img src="<%=resource%>/icons/wifi.png" /> <a href="%s">%h</a><small>&#160;(%h)</small></span>'.format(
++							assoclist[i].radio,
++							assoclist[i].link,
++							assoclist[i].name,
++							assoclist[i].ifname),
++						assoclist[i].bssid,
++						hint ? '%h (%h)'.format(name || '?', hint) : (name || '?'),
++						'<span class="ifacebadge" title="<%:Signal%>: %d <%:dBm%> / <%:Noise%>: %d <%:dBm%> / <%:SNR%>: %d"><img src="%s" /> %d / %d <%:dBm%></span>'.format(
++							assoclist[i].signal,
++							assoclist[i].noise,
++							assoclist[i].signal - assoclist[i].noise,
++							icon,
++							assoclist[i].signal,
++							assoclist[i].noise),
++						E('span', {}, [
++							E('span', wifirate(assoclist[i], true)),
++							E('br'),
++							E('span', wifirate(assoclist[i], false))
+ 						])
+-					]));
++					]);
+ 				}
+ 
+-				if (ac.firstElementChild === ac.lastElementChild)
+-					ac.appendChild(E('<div class="tr cbi-section-table-row"><div class="td"><em><br /><%:No information available%></em></div></div>'));
++				cbi_update_table(ac, rows, '<em><%:No information available%></em>');
+ 			}
+ 			<% end %>
+ 
+@@ -591,7 +586,7 @@
+ 
+ <h2 name="content"><%:Status%></h2>
+ 
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<legend><%:System%></legend>
+ 
+ 	<div class="table" width="100%">
+@@ -607,9 +602,9 @@ <h2 name="content"><%:Status%></h2>
+ 		<div class="tr"><div class="td left" width="33%"><%:Uptime%></div><div class="td left" id="uptime">-</div></div>
+ 		<div class="tr"><div class="td left" width="33%"><%:Load Average%></div><div class="td left" id="loadavg">-</div></div>
+ 	</div>
+-</fieldset>
++</div>
+ 
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<legend><%:Memory%></legend>
+ 
+ 	<div class="table" width="100%">
+@@ -617,20 +612,20 @@ <h2 name="content"><%:Status%></h2>
+ 		<div class="tr"><div class="td left" width="33%"><%:Free%></div><div class="td left" id="memfree">-</div></div>
+ 		<div class="tr"><div class="td left" width="33%"><%:Buffered%></div><div class="td left" id="membuff">-</div></div>
+ 	</div>
+-</fieldset>
++</div>
+ 
+ <% if swapinfo.total > 0 then %>
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<legend><%:Swap%></legend>
+ 
+ 	<div class="table" width="100%">
+ 		<div class="tr"><div class="td left" width="33%"><%:Total Available%></div><div class="td left" id="swaptotal">-</div></div>
+ 		<div class="tr"><div class="td left" width="33%"><%:Free%></div><div class="td left" id="swapfree">-</div></div>
+ 	</div>
+-</fieldset>
++</div>
+ <% end %>
+ 
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<legend><%:Network%></legend>
+ 
+ 	<div id="upstream_status_table" class="network-status-table">
+@@ -640,87 +635,95 @@ <h2 name="content"><%:Status%></h2>
+ 	<div class="table" width="100%">
+ 		<div class="tr"><div class="td left" width="33%"><%:Active Connections%></div><div class="td left" id="conns">-</div></div>
+ 	</div>
+-</fieldset>
++</div>
+ 
+ <% if has_dhcp then %>
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<legend><%:DHCP Leases%></legend>
+ 
+-	<div class="table cbi-section-table" id="lease_status_table">
+-		<div class="tr cbi-section-table-titles">
+-			<div class="th"><%:Hostname%></div>
+-			<div class="th"><%:IPv4-Address%></div>
+-			<div class="th"><%:MAC-Address%></div>
+-			<div class="th"><%:Leasetime remaining%></div>
+-		</div>
+-		<div class="tr cbi-section-table-row">
+-			<div class="td" colspan="4"><em><br /><%:Collecting data...%></em></div>
++	<div class="cbi-section-node">
++		<div class="table" id="lease_status_table">
++			<div class="tr table-titles">
++				<div class="th"><%:Hostname%></div>
++				<div class="th"><%:IPv4-Address%></div>
++				<div class="th"><%:MAC-Address%></div>
++				<div class="th"><%:Leasetime remaining%></div>
++			</div>
++			<div class="tr cbi-section-table-row">
++				<div class="td" colspan="4"><em><br /><%:Collecting data...%></em></div>
++			</div>
+ 		</div>
+ 	</div>
+-</fieldset>
++</div>
+ 
+-<fieldset class="cbi-section" style="display:none">
++<div class="cbi-section" style="display:none">
+ 	<legend><%:DHCPv6 Leases%></legend>
+ 
+-	<div class="table cbi-section-table" id="lease6_status_table">
+-		<div class="tr cbi-section-table-titles">
+-			<div class="th"><%:Host%></div>
+-			<div class="th"><%:IPv6-Address%></div>
+-			<div class="th"><%:DUID%></div>
+-			<div class="th"><%:Leasetime remaining%></div>
+-		</div>
+-		<div class="tr cbi-section-table-row">
+-			<div class="td" colspan="4"><em><br /><%:Collecting data...%></em></div>
++	<div class="cbi-section-node">
++		<div class="table" id="lease6_status_table">
++			<div class="tr table-titles">
++				<div class="th"><%:Host%></div>
++				<div class="th"><%:IPv6-Address%></div>
++				<div class="th"><%:DUID%></div>
++				<div class="th"><%:Leasetime remaining%></div>
++			</div>
++			<div class="tr cbi-section-table-row">
++				<div class="td" colspan="4"><em><br /><%:Collecting data...%></em></div>
++			</div>
+ 		</div>
+ 	</div>
+-</fieldset>
++</div>
+ <% end %>
+ 
+ <% if has_dsl then %>
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<legend><%:DSL%></legend>
+-	<div class="table" width="100%">
+-		<div class="tr">
+-			<div class="td left" width="33%" style="vertical-align:top"><%:DSL Status%></div>
+-			<div class="td">
+-				<div class="table">
+-					<div class="tr">
+-						<div class="td" id="dsl_i" style="width:16px; text-align:center; padding:3px"><img src="<%=resource%>/icons/ethernet_disabled.png" /><br /><small>?</small></div>
+-						<div class="td left" id="dsl_s" style="vertical-align:middle; padding: 3px"><em><%:Collecting data...%></em></div>
++
++	<div class="cbi-section-node">
++		<div class="table" width="100%">
++			<div class="tr">
++				<div class="td left" width="33%" style="vertical-align:top"><%:DSL Status%></div>
++				<div class="td">
++					<div class="table">
++						<div class="tr">
++							<div class="td" id="dsl_i" style="width:16px; text-align:center; padding:3px"><img src="<%=resource%>/icons/ethernet_disabled.png" /><br /><small>?</small></div>
++							<div class="td left" id="dsl_s" style="vertical-align:middle; padding: 3px"><em><%:Collecting data...%></em></div>
++						</div>
+ 					</div>
+ 				</div>
+ 			</div>
+ 		</div>
+ 	</div>
+-</fieldset>
++</div>
+ <% end %>
+ 
+ <% if has_wifi then %>
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<legend><%:Wireless%></legend>
+ 
+ 	<div id="wifi_status_table" class="network-status-table">
+ 		<em><%:Collecting data...%></em>
+ 	</div>
+-</fieldset>
++</div>
+ 
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<legend><%:Associated Stations%></legend>
+ 
+-	<div class="table cbi-section-table valign-middle" id="wifi_assoc_table">
+-		<div class="tr cbi-section-table-titles">
+-			<div class="th">&#160;</div>
+-			<div class="th"><%:Network%></div>
+-			<div class="th"><%:MAC-Address%></div>
+-			<div class="th"><%:Host%></div>
+-			<div class="th"><%:Signal%> / <%:Noise%></div>
+-			<div class="th"><%:RX Rate%> / <%:TX Rate%></div>
+-		</div>
+-		<div class="tr cbi-section-table-row">
+-			<div class="td" colspan="6"><em><br /><%:Collecting data...%></em></div>
++	<div class="cbi-section-node">
++		<div class="table" id="wifi_assoc_table">
++			<div class="tr table-titles">
++				<div class="th nowrap"><%:Network%></div>
++				<div class="th hide-xs"><%:MAC-Address%></div>
++				<div class="th nowrap"><%:Host%></div>
++				<div class="th nowrap"><%:Signal%> / <%:Noise%></div>
++				<div class="th nowrap"><%:RX Rate%> / <%:TX Rate%></div>
++			</div>
++			<div class="tr">
++				<div class="td" colspan="6"><em><br /><%:Collecting data...%></em></div>
++			</div>
+ 		</div>
+ 	</div>
+-</fieldset>
++</div>
+ <% end %>
+ 
+ <%-
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_status/iptables.htm b/modules/luci-mod-admin-full/luasrc/view/admin_status/iptables.htm
+index ced4d5f774..5d544ca60b 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_status/iptables.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_status/iptables.htm
+@@ -62,6 +62,7 @@
+ 
+ <%+header%>
+ 
++<script type="text/javascript" src="<%=resource%>/cbi.js"></script>
+ <style type="text/css">
+ 	span:target {
+ 		color: blue;
+@@ -70,7 +71,6 @@
+ </style>
+ 
+ <h2 name="content"><%:Firewall Status%></h2>
+-<br />
+ 
+ <% if has_ip6tables then %>
+ <ul class="cbi-tabmenu">
+@@ -88,69 +88,69 @@ <h2 name="content"><%:Firewall Status%></h2>
+ 		<input type="submit" class="cbi-button" name="restart" value="<%:Restart Firewall%>" />
+ 	</form>
+ 
+-	<fieldset class="cbi-section">
++	<div class="cbi-section">
+ 
+ 		<% for _, tbl in ipairs(tables) do chaincnt = 0 %>
+ 			<h3><%:Table%>: <%=tbl%></h3>
+-			<div class="table cbi-section-table" style="font-size:90%">
+-				<% for _, chain in ipairs(ipt:chains(tbl)) do
+-					rowcnt    = 0
+-					chaincnt  = chaincnt + 1
+-					chaininfo = ipt:chain(tbl, chain)
+-				%>
+-					<div class="tr cbi-section-table-titles cbi-rowstyle-<%=rowstyle()%>">
+-						<div class="th cbi-section-table-cell" style="text-align:left" colspan="11">
+-							<br /><span id="rule_<%=tbl:lower()%>_<%=chain%>">
+-							<%:Chain%> <em><%=chain%></em>
+-							(<%- if chaininfo.policy then -%>
+-								<%:Policy%>: <em><%=chaininfo.policy%></em>, <%:Packets%>: <%=chaininfo.packets%>, <%:Traffic%>: <%=wba.byte_format(chaininfo.bytes)-%>
+-							<%- else -%>
+-								<%:References%>: <%=chaininfo.references-%>
+-							<%- end -%>)</span>
+-						</div>
+-					</div>
+-					<div class="tr cbi-section-table-descr">
+-						<div class="th cbi-section-table-cell"><%:Pkts.%></div>
+-						<div class="th cbi-section-table-cell"><%:Traffic%></div>
+-						<div class="th cbi-section-table-cell"><%:Target%></div>
+-						<div class="th cbi-section-table-cell"><%:Prot.%></div>
+-						<div class="th cbi-section-table-cell"><%:In%></div>
+-						<div class="th cbi-section-table-cell"><%:Out%></div>
+-						<div class="th cbi-section-table-cell"><%:Source%></div>
+-						<div class="th cbi-section-table-cell"><%:Destination%></div>
+-						<div class="th cbi-section-table-cell" style="width:30%"><%:Options%></div>
+-					</div>
+ 
+-					<% for _, rule in ipairs(ipt:find({table=tbl, chain=chain})) do %>
+-						<div class="tr cbi-section-table-row cbi-rowstyle-<%=rowstyle()%>">
+-							<div class="td"><%=rule.packets%></div>
+-							<div class="td" style="white-space: nowrap"><%=wba.byte_format(rule.bytes)%></div>
+-							<div class="td"><%=rule.target and link_target(tbl, rule.target) or "-"%></div>
+-							<div class="td"><%=rule.protocol%></div>
+-							<div class="td"><%=link_iface(rule.inputif)%></div>
+-							<div class="td"><%=link_iface(rule.outputif)%></div>
+-							<div class="td"><%=rule.source%></div>
+-							<div class="td"><%=rule.destination%></div>
+-							<div class="td" style="width:30%"><small><%=#rule.options > 0 and luci.util.pcdata(table.concat(rule.options, " ")) or "-"%></small></div>
++			<% for _, chain in ipairs(ipt:chains(tbl)) do
++				rowcnt    = 0
++				chaincnt  = chaincnt + 1
++				chaininfo = ipt:chain(tbl, chain)
++			%>
++				<h4  id="rule_<%=tbl:lower()%>_<%=chain%>">
++					<%:Chain%> <em><%=chain%></em>
++					(<%- if chaininfo.policy then -%>
++						<%:Policy%>: <em><%=chaininfo.policy%></em>, <%:Packets%>: <%=chaininfo.packets%>, <%:Traffic%>: <%=wba.byte_format(chaininfo.bytes)-%>
++					<%- else -%>
++						<%:References%>: <%=chaininfo.references-%>
++					<%- end -%>)
++				</h4>
++
++				<div class="cbi-section-node">
++					<div class="table" style="font-size:90%">
++						<div class="tr table-titles cbi-rowstyle-<%=rowstyle()%>">
++							<div class="th hide-xs"><%:Pkts.%></div>
++							<div class="th nowrap"><%:Traffic%></div>
++							<div class="th col-5"><%:Target%></div>
++							<div class="th"><%:Prot.%></div>
++							<div class="th"><%:In%></div>
++							<div class="th"><%:Out%></div>
++							<div class="th"><%:Source%></div>
++							<div class="th"><%:Destination%></div>
++							<div class="th col-9 hide-xs"><%:Options%></div>
+ 						</div>
+-					<% end %>
+ 
+-					<% if rowcnt == 1 then %>
+-						<div class="tr cbi-section-table-titles cbi-rowstyle-<%=rowstyle()%>">
+-							<div class="td" colspan="9"><em><%:No rules in this chain%></em></div>
+-						</div>
+-					<% end %>
+-				<% end %>
+-
+-				<% if chaincnt == 0 then %>
+-					<div class="tr cbi-section-table-titles cbi-rowstyle-<%=rowstyle()%>">
+-						<div class="td" colspan="9"><em><%:No chains in this table%></em></div>
++						<% for _, rule in ipairs(ipt:find({table=tbl, chain=chain})) do %>
++							<div class="tr cbi-rowstyle-<%=rowstyle()%>">
++								<div class="td"><%=rule.packets%></div>
++								<div class="td nowrap"><%=wba.byte_format(rule.bytes)%></div>
++								<div class="td col-5"><%=rule.target and link_target(tbl, rule.target) or "-"%></div>
++								<div class="td"><%=rule.protocol%></div>
++								<div class="td"><%=link_iface(rule.inputif)%></div>
++								<div class="td"><%=link_iface(rule.outputif)%></div>
++								<div class="td"><%=rule.source%></div>
++								<div class="td"><%=rule.destination%></div>
++								<div class="td col-9 hide-xs"><%=#rule.options > 0 and luci.util.pcdata(table.concat(rule.options, " ")) or "-"%></div>
++							</div>
++						<% end %>
++
++						<% if rowcnt == 1 then %>
++							<div class="tr cbi-rowstyle-<%=rowstyle()%>">
++								<div class="td" colspan="9"><em><%:No rules in this chain%></em></div>
++							</div>
++						<% end %>
+ 					</div>
+-				<% end %>
+-			</div>
++				</div>
++			<% end %>
++
++			<% if chaincnt == 0 then %>
++				<em><%:No chains in this table%></em>
++			<% end %>
++
+ 			<br /><br />
+ 		<% end %>
+-	</fieldset>
++	</div>
+ </div>
+ 
+ <%+footer%>
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_status/routes.htm b/modules/luci-mod-admin-full/luasrc/view/admin_status/routes.htm
+index af80371353..9ed37939fe 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_status/routes.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_status/routes.htm
+@@ -32,28 +32,30 @@
+ 
+ <%+header%>
+ 
++<script type="text/javascript" src="<%=resource%>/cbi.js"></script>
++
+ <div class="cbi-map" id="cbi-network">
+ 	<h2 name="content"><%:Routes%></h2>
+ 	<div class="cbi-map-descr"><%:The following rules are currently active on this system.%></div>
+ 
+-	<fieldset class="cbi-section">
++	<div class="cbi-section">
+ 		<legend>ARP</legend>
+ 		<div class="cbi-section-node">
+-			<div class="table cbi-section-table">
+-				<div class="tr cbi-section-table-titles">
+-					<div class="th cbi-section-table-cell"><%_<abbr title="Internet Protocol Version 4">IPv4</abbr>-Address%></div>
+-					<div class="th cbi-section-table-cell"><%_<abbr title="Media Access Control">MAC</abbr>-Address%></div>
+-					<div class="th cbi-section-table-cell"><%:Interface%></div>
++			<div class="table">
++				<div class="tr table-titles">
++					<div class="th"><%_<abbr title="Internet Protocol Version 4">IPv4</abbr>-Address%></div>
++					<div class="th"><%_<abbr title="Media Access Control">MAC</abbr>-Address%></div>
++					<div class="th"><%:Interface%></div>
+ 				</div>
+ 
+ 				<%
+ 					for _, v in ipairs(ip.neighbors({ family = 4 })) do
+ 						if v.mac then
+ 				%>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-<%=(style and 1 or 2)%>">
+-					<div class="td cbi-value-field"><%=v.dest%></div>
+-					<div class="td cbi-value-field"><%=v.mac%></div>
+-					<div class="td cbi-value-field"><%=luci.tools.webadmin.iface_get_network(v.dev) or '(' .. v.dev .. ')'%></div>
++				<div class="tr cbi-rowstyle-<%=(style and 1 or 2)%>">
++					<div class="td"><%=v.dest%></div>
++					<div class="td"><%=v.mac%></div>
++					<div class="td"><%=luci.tools.webadmin.iface_get_network(v.dev) or '(' .. v.dev .. ')'%></div>
+ 				</div>
+ 				<%
+ 							style = not style
+@@ -62,61 +64,57 @@ <h2 name="content"><%:Routes%></h2>
+ 				%>
+ 			</div>
+ 		</div>
+-	</fieldset>
+-	<br />
++	</div>
+ 
+-	<fieldset class="cbi-section">
++	<div class="cbi-section">
+ 		<legend><%_Active <abbr title="Internet Protocol Version 4">IPv4</abbr>-Routes%></legend>
+-
+ 		<div class="cbi-section-node">
+-			<div class="table cbi-section-table">
+-				<div class="tr cbi-section-table-titles">
+-					<div class="th cbi-section-table-cell"><%:Network%></div>
+-					<div class="th cbi-section-table-cell"><%:Target%></div>
+-					<div class="th cbi-section-table-cell"><%_<abbr title="Internet Protocol Version 4">IPv4</abbr>-Gateway%></div>
+-					<div class="th cbi-section-table-cell"><%:Metric%></div>
+-					<div class="th cbi-section-table-cell"><%:Table%></div>
++			<div class="table">
++				<div class="tr table-titles">
++					<div class="th"><%:Network%></div>
++					<div class="th"><%:Target%></div>
++					<div class="th"><%_<abbr title="Internet Protocol Version 4">IPv4</abbr>-Gateway%></div>
++					<div class="th"><%:Metric%></div>
++					<div class="th"><%:Table%></div>
+ 				</div>
+ 				<% for _, v in ipairs(ip.routes({ family = 4, type = 1 })) do %>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-<%=(style and 1 or 2)%>">
+-					<div class="td cbi-value-field"><%=luci.tools.webadmin.iface_get_network(v.dev) or v.dev%></div>
+-					<div class="td cbi-value-field"><%=v.dest%></div>
+-					<div class="td cbi-value-field"><%=v.gw%></div>
+-					<div class="td cbi-value-field"><%=v.metric or 0%></div>
+-					<div class="td cbi-value-field"><%=rtn[v.table] or v.table%></div>
++				<div class="tr cbi-rowstyle-<%=(style and 1 or 2)%>">
++					<div class="td"><%=luci.tools.webadmin.iface_get_network(v.dev) or v.dev%></div>
++					<div class="td"><%=v.dest%></div>
++					<div class="td"><%=v.gw or "-"%></div>
++					<div class="td"><%=v.metric or 0%></div>
++					<div class="td"><%=rtn[v.table] or v.table%></div>
+ 				</div>
+ 				<% style = not style end %>
+ 			</div>
+ 		</div>
+-	</fieldset>
+-	<br />
++	</div>
+ 
+ 	<%
+ 		if nixio.fs.access("/proc/net/ipv6_route") then
+ 			style = true
+ 	%>
+-	<fieldset class="cbi-section">
++	<div class="cbi-section">
+ 		<legend><%_Active <abbr title="Internet Protocol Version 6">IPv6</abbr>-Routes%></legend>
+-
+ 		<div class="cbi-section-node">
+-			<div class="table cbi-section-table">
+-				<div class="tr cbi-section-table-titles">
+-					<div class="th cbi-section-table-cell"><%:Network%></div>
+-					<div class="th cbi-section-table-cell"><%:Target%></div>
+-					<div class="th cbi-section-table-cell"><%:Source%></div>
+-					<div class="th cbi-section-table-cell"><%:Metric%></div>
+-					<div class="th cbi-section-table-cell"><%:Table%></div>
++			<div class="table">
++				<div class="tr table-titles">
++					<div class="th"><%:Network%></div>
++					<div class="th"><%:Target%></div>
++					<div class="th"><%:Source%></div>
++					<div class="th"><%:Metric%></div>
++					<div class="th"><%:Table%></div>
+ 				</div>
+ 				<%
+ 					for _, v in ipairs(ip.routes({ family = 6, type = 1 })) do
+ 						if v.dest and not v.dest:is6linklocal() then
+ 				%>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-<%=(style and 1 or 2)%>">
+-					<div class="td cbi-value-field"><%=luci.tools.webadmin.iface_get_network(v.dev) or '(' .. v.dev .. ')'%></div>
+-					<div class="td cbi-value-field"><%=v.dest%></div>
+-					<div class="td cbi-value-field"><%=v.from%></div>
+-					<div class="td cbi-value-field"><%=v.metric or 0%></div>
+-					<div class="td cbi-value-field"><%=rtn[v.table] or v.table%></div>
++				<div class="tr cbi-rowstyle-<%=(style and 1 or 2)%>">
++					<div class="td"><%=luci.tools.webadmin.iface_get_network(v.dev) or '(' .. v.dev .. ')'%></div>
++					<div class="td"><%=v.dest%></div>
++					<div class="td"><%=v.from%></div>
++					<div class="td"><%=v.metric or 0%></div>
++					<div class="td"><%=rtn[v.table] or v.table%></div>
+ 				</div>
+ 				<%
+ 							style = not style
+@@ -125,27 +123,25 @@ <h2 name="content"><%:Routes%></h2>
+ 				%>
+ 			</div>
+ 		</div>
+-	</fieldset>
+-	<br />
++	</div>
+ 
+-	<fieldset class="cbi-section">
++	<div class="cbi-section">
+ 		<legend><%:IPv6 Neighbours%></legend>
+-
+ 		<div class="cbi-section-node">
+-			<div class="table cbi-section-table">
+-				<div class="tr cbi-section-table-titles">
+-					<div class="th cbi-section-table-cell"><%:IPv6-Address%></div>
+-					<div class="th cbi-section-table-cell"><%:MAC-Address%></div>
+-					<div class="th cbi-section-table-cell"><%:Interface%></div>
++			<div class="table">
++				<div class="tr table-titles">
++					<div class="th"><%:IPv6-Address%></div>
++					<div class="th"><%:MAC-Address%></div>
++					<div class="th"><%:Interface%></div>
+ 				</div>
+ 				<%
+ 					for _, v in ipairs(ip.neighbors({ family = 6 })) do
+ 						if v.dest and not v.dest:is6linklocal() and v.mac then
+ 				%>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-<%=(style and 1 or 2)%>">
+-					<div class="td cbi-value-field"><%=v.dest%></div>
+-					<div class="td cbi-value-field"><%=v.mac%></div>
+-					<div class="td cbi-value-field"><%=luci.tools.webadmin.iface_get_network(v.dev) or '(' .. v.dev .. ')'%></div>
++				<div class="tr cbi-rowstyle-<%=(style and 1 or 2)%>">
++					<div class="td"><%=v.dest%></div>
++					<div class="td"><%=v.mac%></div>
++					<div class="td"><%=luci.tools.webadmin.iface_get_network(v.dev) or '(' .. v.dev .. ')'%></div>
+ 				</div>
+ 				<%
+ 							style = not style
+@@ -154,8 +150,7 @@ <h2 name="content"><%:Routes%></h2>
+ 				%>
+ 			</div>
+ 		</div>
+-	</fieldset>
+-	<br />
++	</div>
+ 	<% end %>
+ </div>
+ 
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_system/flashops.htm b/modules/luci-mod-admin-full/luasrc/view/admin_system/flashops.htm
+index b32ef78263..9eec012547 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_system/flashops.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_system/flashops.htm
+@@ -13,84 +13,78 @@ <h2 name="content"><%:Flash operations%></h2>
+ 	<li class="cbi-tab-disabled"><a href="<%=REQUEST_URI%>/backupfiles"><%:Configuration%></a></li>
+ </ul>
+ 
+-<fieldset class="cbi-section">
+-
+-	<fieldset class="cbi-section">
+-		<legend><%:Backup / Restore%></legend>
+-		<div class="cbi-section-descr"><%:Click "Generate archive" to download a tar archive of the current configuration files. To reset the firmware to its initial state, click "Perform reset" (only possible with squashfs images).%></div>
+-		<div class="cbi-section-node">
+-			<form class="inline" method="post" action="<%=url('admin/system/flashops/backup')%>">
+-				<input type="hidden" name="token" value="<%=token%>" />
+-				<div class="cbi-value<% if not reset_avail then %> cbi-value-last<% end %>">
+-					<label class="cbi-value-title" for="image"><%:Download backup%>:</label>
+-					<div class="cbi-value-field">
+-						<input class="cbi-button cbi-button-apply" type="submit" name="backup" value="<%:Generate archive%>" />
+-					</div>
+-				</div>
+-			</form>
+-			<% if reset_avail then %>
+-			<form class="inline" method="post" action="<%=url('admin/system/flashops/reset')%>">
+-				<input type="hidden" name="token" value="<%=token%>" />
+-				<div class="cbi-value cbi-value-last">
+-					<label class="cbi-value-title"><%:Reset to defaults%>:</label>
+-					<div class="cbi-value-field">
+-						<input onclick="return confirm('<%:Really reset all changes?%>')" class="cbi-button cbi-button-reset" type="submit" name="reset" value="<%:Perform reset%>" />
+-					</div>
+-				</div>
+-			</form>
+-			<% end %>
+-		</div>
+-		<br />
+-		<div class="cbi-section-descr"><%:To restore configuration files, you can upload a previously generated backup archive here.%></div>
+-		<div class="cbi-section-node">
+-			<form class="inline" method="post" action="<%=url('admin/system/flashops/restore')%>" enctype="multipart/form-data">
+-				<div class="cbi-value cbi-value-last">
+-					<label class="cbi-value-title" for="archive"><%:Restore backup%>:</label>
+-					<div class="cbi-value-field">
+-						<input type="hidden" name="token" value="<%=token%>" />
+-						<input type="file" name="archive" id="archive" />
+-						<input type="submit" class="cbi-button cbi-input-apply" name="restore" value="<%:Upload archive...%>" />
+-					</div>
++<div class="cbi-section">
++	<legend><%:Backup / Restore%></legend>
++	<div class="cbi-section-descr"><%:Click "Generate archive" to download a tar archive of the current configuration files. To reset the firmware to its initial state, click "Perform reset" (only possible with squashfs images).%></div>
++	<div class="cbi-section-node">
++		<form class="inline" method="post" action="<%=url('admin/system/flashops/backup')%>">
++			<input type="hidden" name="token" value="<%=token%>" />
++			<div class="cbi-value<% if not reset_avail then %> cbi-value-last<% end %>">
++				<label class="cbi-value-title" for="image"><%:Download backup%>:</label>
++				<div class="cbi-value-field">
++					<input class="cbi-button cbi-button-action important" type="submit" name="backup" value="<%:Generate archive%>" />
+ 				</div>
+-			</form>
+-		</div>
++			</div>
++		</form>
+ 		<% if reset_avail then %>
+-		<div class="alert-message warning"><%:Custom files (certificates, scripts) may remain on the system. To prevent this, perform a factory-reset first.%></div>
++		<form class="inline" method="post" action="<%=url('admin/system/flashops/reset')%>">
++			<input type="hidden" name="token" value="<%=token%>" />
++			<div class="cbi-value cbi-value-last">
++				<label class="cbi-value-title"><%:Reset to defaults%>:</label>
++				<div class="cbi-value-field">
++					<input onclick="return confirm('<%:Really reset all changes?%>')" class="cbi-button cbi-button-reset" type="submit" name="reset" value="<%:Perform reset%>" />
++				</div>
++			</div>
++		</form>
+ 		<% end %>
+-	</fieldset>
+-
++	</div>
+ 	<br />
++	<div class="cbi-section-descr"><%:To restore configuration files, you can upload a previously generated backup archive here.%></div>
++	<div class="cbi-section-node">
++		<form class="inline" method="post" action="<%=url('admin/system/flashops/restore')%>" enctype="multipart/form-data">
++			<div class="cbi-value cbi-value-last">
++				<label class="cbi-value-title" for="archive"><%:Restore backup%>:</label>
++				<div class="cbi-value-field">
++					<input type="hidden" name="token" value="<%=token%>" />
++					<input type="file" name="archive" id="archive" />
++					<input type="submit" class="cbi-button cbi-button-action important" name="restore" value="<%:Upload archive...%>" />
++				</div>
++			</div>
++		</form>
++	</div>
++	<% if reset_avail then %>
++	<div class="alert-message warning"><%:Custom files (certificates, scripts) may remain on the system. To prevent this, perform a factory-reset first.%></div>
++	<% end %>
++</div>
+ 
+-	<fieldset class="cbi-section">
+-		<legend><%:Flash new firmware image%></legend>
+-		<% if upgrade_avail then %>
+-			<form method="post" action="<%=url('admin/system/flashops/sysupgrade')%>" enctype="multipart/form-data">
+-				<input type="hidden" name="token" value="<%=token%>" />
+-				<div class="cbi-section-descr"><%:Upload a sysupgrade-compatible image here to replace the running firmware. Check "Keep settings" to retain the current configuration (requires a compatible firmware image).%></div>
+-				<div class="cbi-section-node">
+-					<div class="cbi-value">
+-						<label class="cbi-value-title" for="keep"><%:Keep settings%>:</label>
+-						<div class="cbi-value-field">
+-							<input type="checkbox" name="keep" id="keep" checked="checked" />
+-						</div>
++<div class="cbi-section">
++	<legend><%:Flash new firmware image%></legend>
++	<% if upgrade_avail then %>
++		<form method="post" action="<%=url('admin/system/flashops/sysupgrade')%>" enctype="multipart/form-data">
++			<input type="hidden" name="token" value="<%=token%>" />
++			<div class="cbi-section-descr"><%:Upload a sysupgrade-compatible image here to replace the running firmware. Check "Keep settings" to retain the current configuration (requires a compatible firmware image).%></div>
++			<div class="cbi-section-node">
++				<div class="cbi-value">
++					<label class="cbi-value-title" for="keep"><%:Keep settings%>:</label>
++					<div class="cbi-value-field">
++						<input type="checkbox" name="keep" id="keep" checked="checked" />
+ 					</div>
+-					<div class="cbi-value cbi-value-last<% if image_invalid then %> cbi-value-error<% end %>">
+-						<label class="cbi-value-title" for="image"><%:Image%>:</label>
+-						<div class="cbi-value-field">
+-							<input type="file" name="image" id="image" />
+-							<input type="submit" class="cbi-button cbi-input-apply" value="<%:Flash image...%>" />
+-						</div>
++				</div>
++				<div class="cbi-value cbi-value-last<% if image_invalid then %> cbi-value-error<% end %>">
++					<label class="cbi-value-title" for="image"><%:Image%>:</label>
++					<div class="cbi-value-field">
++						<input type="file" name="image" id="image" />
++						<input type="submit" class="cbi-button cbi-button-action important" value="<%:Flash image...%>" />
+ 					</div>
+ 				</div>
+-				<% if image_invalid then %>
+-					<div class="cbi-section-error"><%:The uploaded image file does not contain a supported format. Make sure that you choose the generic image format for your platform. %></div>
+-				<% end %>
+-			</form>
+-		<% else %>
+-			<div class="cbi-section-descr"><%:Sorry, there is no sysupgrade support present; a new firmware image must be flashed manually. Please refer to the wiki for device specific install instructions.%></div>
+-		<% end %>
+-	</fieldset>
+-
+-</fieldset>
++			</div>
++			<% if image_invalid then %>
++				<div class="cbi-section-error"><%:The uploaded image file does not contain a supported format. Make sure that you choose the generic image format for your platform. %></div>
++			<% end %>
++		</form>
++	<% else %>
++		<div class="cbi-section-descr"><%:Sorry, there is no sysupgrade support present; a new firmware image must be flashed manually. Please refer to the wiki for device specific install instructions.%></div>
++	<% end %>
++</div>
+ 
+ <%+footer%>
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_system/packages.htm b/modules/luci-mod-admin-full/luasrc/view/admin_system/packages.htm
+index 4944a232b2..ef13a91672 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_system/packages.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_system/packages.htm
+@@ -44,6 +44,8 @@
+ 
+ <%+header%>
+ 
++<script type="text/javascript" src="<%=resource%>/cbi.js"></script>
++
+ <h2 name="content"><%:Software%></h2>
+ 
+ <div class="cbi-map">
+@@ -57,8 +59,8 @@ <h2 name="content"><%:Software%></h2>
+ 		<input type="hidden" name="exec" value="1" />
+ 		<input type="hidden" name="token" value="<%=token%>" />
+ 
+-		<fieldset class="cbi-section">
+-			<fieldset class="cbi-section-node">
++		<div class="cbi-section">
++			<div class="cbi-section-node">
+ 				<% if (install and next(install)) or (remove and next(remove)) or update or upgrade then %>
+ 				<div class="cbi-value">
+ 					<% if #stdout > 0 then %><pre><%=pcdata(stdout)%></pre><% end %>
+@@ -91,18 +93,18 @@ <h2 name="content"><%:Software%></h2>
+ 						<div style="background-color:#F08080; border-right:1px solid #000000; height:100%; width:<%=used_perc%>%">&#160;</div>
+ 					</div>
+ 				</div>
+-			</fieldset>
++			</div>
+ 
+ 			<br />
+ 
+-			<fieldset class="cbi-section-node">
++			<div class="cbi-section-node">
+ 				<input type="hidden" name="display" value="<%=pcdata(display)%>" />
+ 
+ 				<div class="cbi-value">
+ 					<label class="cbi-value-title"><%:Download and install package%>:</label>
+ 					<div class="cbi-value-field">
+ 						<input type="text" name="url" size="30" value="" />
+-						<input class="cbi-button cbi-input-save" type="submit" name="go" value="<%:OK%>" />
++						<input class="cbi-button cbi-button-save" type="submit" name="go" value="<%:OK%>" />
+ 					</div>
+ 				</div>
+ 
+@@ -110,11 +112,11 @@ <h2 name="content"><%:Software%></h2>
+ 					<label class="cbi-value-title"><%:Filter%>:</label>
+ 					<div class="cbi-value-field">
+ 						<input type="text" name="query" size="20" value="<%=pcdata(query)%>" />
+-						<input type="submit" class="cbi-button cbi-input-find" name="search" value="<%:Find package%>" />
++						<input type="submit" class="cbi-button cbi-button-action" name="search" value="<%:Find package%>" />
+ 					</div>
+ 				</div>
+-			</fieldset>
+-		</fieldset>
++			</div>
++		</div>
+ 	</form>
+ 
+ 
+@@ -122,90 +124,90 @@ <h3><%:Status%></h3>
+ 
+ 
+ 	<ul class="cbi-tabmenu">
+-		<li class="cbi-tab<% if display ~= "installed" then %>-disabled<% end %>"><a href="?display=installed&amp;query=<%=pcdata(query)%>"><%:Installed packages%><% if query then %> (<%=pcdata(query)%>)<% end %></a></li>
+ 		<li class="cbi-tab<% if display ~= "available" then %>-disabled<% end %>"><a href="?display=available&amp;query=<%=pcdata(query)%>"><%:Available packages%><% if query then %> (<%=pcdata(query)%>)<% end %></a></li>
++		<li class="cbi-tab<% if display ~= "installed" then %>-disabled<% end %>"><a href="?display=installed&amp;query=<%=pcdata(query)%>"><%:Installed packages%><% if query then %> (<%=pcdata(query)%>)<% end %></a></li>
+ 	</ul>
+ 
+ 	<% if display ~= "available" then %>
+-		<fieldset class="cbi-section">
+-			<div class="table cbi-section-table" style="width:100%">
+-				<div class="tr cbi-section-table-titles">
+-					<div class="th cbi-section-table-cell" style="text-align:left">&#160;</div>
+-					<div class="th cbi-section-table-cell" style="text-align:left"><%:Package name%></div>
+-					<div class="th cbi-section-table-cell" style="text-align:left"><%:Version%></div>
+-				</div>
+-				<% local empty = true; luci.model.ipkg.list_installed(querypat, function(n, v, s, d) empty = false; filter[n] = true %>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-<%=rowstyle()%>">
+-					<div class="td" style="text-align:left; width:10%">
+-						<form method="post" class="inline" action="<%=REQUEST_URI%>">
+-							<input type="hidden" name="exec" value="1" />
+-							<input type="hidden" name="token" value="<%=token%>" />
+-							<input type="hidden" name="remove" value="<%=pcdata(n)%>" />
+-							<a onclick="window.confirm('<%:Remove%> &quot;<%=luci.util.pcdata(n)%>&quot; ?') &#38;&#38; this.parentNode.submit(); return false" href="#"><%:Remove%></a>
+-						</form>
++		<div class="cbi-section">
++			<div class="cbi-section-node">
++				<div class="table">
++					<div class="tr cbi-section-table-titles">
++						<div class="th left"><%:Package name%></div>
++						<div class="th left"><%:Version%></div>
++						<div class="th cbi-section-actions">&#160;</div>
+ 					</div>
+-					<div class="td" style="text-align:left"><%=luci.util.pcdata(n)%></div>
+-					<div class="td" style="text-align:left"><%=luci.util.pcdata(v)%></div>
+-				</div>
+-				<% end) %>
+-				<% if empty then %>
+-				<div class="tr cbi-section-table-row">
+-					<div class="td" style="text-align:left">&#160;</div>
+-					<div class="td" style="text-align:left"><em><%:none%></em></div>
+-					<div class="td" style="text-align:left"><em><%:none%></em></div>
++					<% local empty = true; luci.model.ipkg.list_installed(querypat, function(n, v, s, d) empty = false; filter[n] = true %>
++					<div class="tr cbi-rowstyle-<%=rowstyle()%>">
++						<div class="td left"><%=luci.util.pcdata(n)%></div>
++						<div class="td left"><%=luci.util.pcdata(v)%></div>
++						<div class="td cbi-section-actions">
++							<form method="post" class="inline" action="<%=REQUEST_URI%>">
++								<input type="hidden" name="exec" value="1" />
++								<input type="hidden" name="token" value="<%=token%>" />
++								<input type="hidden" name="remove" value="<%=pcdata(n)%>" />
++								<input class="cbi-button cbi-button-remove" type="submit" onclick="window.confirm('<%:Remove%> &quot;<%=luci.util.pcdata(n)%>&quot; ?') &#38;&#38; this.parentNode.submit(); return false" value="<%:Remove%>" />
++							</form>
++						</div>
++					</div>
++					<% end) %>
++					<% if empty then %>
++					<div class="tr cbi-section-table-row">
++						<div class="td left">&#160;</div>
++						<div class="td left"><em><%:none%></em></div>
++						<div class="td left"><em><%:none%></em></div>
++					</div>
++					<% end %>
+ 				</div>
+-				<% end %>
+ 			</div>
+-		</fieldset>
++		</div>
+ 	<% else %>
+-		<fieldset class="cbi-section">
++		<div class="cbi-section">
+ 		<% if not querypat then %>
+-			<ul class="cbi-tabmenu">
++			<ul class="cbi-tabmenu" style="flex-wrap:wrap">
+ 				<% local i; for i = 65, 90 do %>
+ 				<li class="cbi-tab<% if letter ~= i then %>-disabled<% end %>"><a href="?display=available&amp;letter=<%=string.char(i)%>"><%=string.char(i)%></a></li>
+ 				<% end %>
+ 				<li class="cbi-tab<% if letter ~= 35 then %>-disabled<% end %>"><a href="?display=available&amp;letter=%23">#</a></li>
+ 			</ul>
+-			<div class="cbi-section-node">
+ 		<% end %>
+-			<div class="table cbi-section-table" style="width:100%">
+-				<div class="tr cbi-section-table-titles">
+-					<div class="th cbi-section-table-cell" style="text-align:left">&#160;</div>
+-					<div class="th cbi-section-table-cell" style="text-align:left"><%:Package name%></div>
+-					<div class="th cbi-section-table-cell" style="text-align:left"><%:Version%></div>
+-					<div class="th cbi-section-table-cell" style="text-align:right"><%:Size (.ipk)%></div>
+-					<div class="th cbi-section-table-cell" style="text-align:left"><%:Description%></div>
+-				</div>
+-				<% local empty = true; opkg_list(querypat or letterpat, function(n, v, s, d) if filter[n] then return end; empty = false %>
+-				<div class="tr cbi-section-table-row cbi-rowstyle-<%=rowstyle()%>">
+-					<div class="td" style="text-align:left; width:10%">
+-						<form method="post" class="inline" action="<%=REQUEST_URI%>">
+-							<input type="hidden" name="exec" value="1" />
+-							<input type="hidden" name="token" value="<%=token%>" />
+-							<input type="hidden" name="install" value="<%=pcdata(n)%>" />
+-							<a onclick="window.confirm('<%:Install%> &quot;<%=luci.util.pcdata(n)%>&quot; ?') &#38;&#38; this.parentNode.submit(); return false" href="#"><%:Install%></a>
+-						</form>
++			<div class="cbi-section-node cbi-section-node-tabbed">
++				<div class="table">
++					<div class="tr cbi-section-table-titles">
++						<div class="th col-2 left"><%:Package name%></div>
++						<div class="th col-2 left"><%:Version%></div>
++						<div class="th col-1 center"><%:Size (.ipk)%></div>
++						<div class="th col-10 left"><%:Description%></div>
++						<div class="th cbi-section-actions">&#160;</div>
+ 					</div>
+-					<div class="td" style="text-align:left"><%=luci.util.pcdata(n)%></div>
+-					<div class="td" style="text-align:left"><%=luci.util.pcdata(v)%></div>
+-					<div class="td" style="text-align:right"><%=luci.util.pcdata(s)%></div>
+-					<div class="td" style="text-align:left"><%=luci.util.pcdata(d)%></div>
+-				</div>
+-				<% end) %>
+-				<% if empty then %>
+-				<div class="tr cbi-section-table-row">
+-					<div class="td" style="text-align:left">&#160;</div>
+-					<div class="td" style="text-align:left"><em><%:none%></em></div>
+-					<div class="td" style="text-align:left"><em><%:none%></em></div>
+-					<div class="td" style="text-align:right"><em><%:none%></em></div>
+-					<div class="td" style="text-align:left"><em><%:none%></em></div>
++					<% local empty = true; opkg_list(querypat or letterpat, function(n, v, s, d) if filter[n] then return end; empty = false %>
++					<div class="tr cbi-rowstyle-<%=rowstyle()%>">
++						<div class="td col-2 left"><%=luci.util.pcdata(n)%></div>
++						<div class="td col-2 left"><%=luci.util.pcdata(v)%></div>
++						<div class="td col-1 center"><%=luci.util.pcdata(s)%></div>
++						<div class="td col-10 left"><%=luci.util.pcdata(d)%></div>
++						<div class="td cbi-section-actions">
++							<form method="post" class="inline" action="<%=REQUEST_URI%>">
++								<input type="hidden" name="exec" value="1" />
++								<input type="hidden" name="token" value="<%=token%>" />
++								<input type="hidden" name="install" value="<%=pcdata(n)%>" />
++								<input class="cbi-button cbi-button-apply" type="submit" onclick="window.confirm('<%:Install%> &quot;<%=luci.util.pcdata(n)%>&quot; ?') &#38;&#38; this.parentNode.submit(); return false" value="<%:Install%>" />
++							</form>
++						</div>
++					</div>
++					<% end) %>
++					<% if empty then %>
++					<div class="tr">
++						<div class="td left">&#160;</div>
++						<div class="td left"><em><%:none%></em></div>
++						<div class="td left"><em><%:none%></em></div>
++						<div class="td right"><em><%:none%></em></div>
++						<div class="td left"><em><%:none%></em></div>
++					</div>
++					<% end %>
+ 				</div>
+-				<% end %>
+ 			</div>
+-		<% if not querypat then %>
+-			</div>
+-		<% end %>
+-		</fieldset>
++		</div>
+ 	<% end %>
+ </div>
+ 
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_system/reboot.htm b/modules/luci-mod-admin-full/luasrc/view/admin_system/reboot.htm
+index c9551804d2..6ec2b310d2 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_system/reboot.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_system/reboot.htm
+@@ -7,7 +7,6 @@
+ <%+header%>
+ 
+ <h2 name="content"><%:Reboot%></h2>
+-<br />
+ 
+ <p><%:Reboots the operating system of your device%></p>
+ 
+@@ -49,7 +48,7 @@ <h2 name="content"><%:Reboot%></h2>
+ 	}
+ //]]></script>
+ 
+-<input class="cbi-button cbi-button-apply" type="button" value="<%:Perform reboot%>" onclick="reboot(this)" />
++<input class="cbi-button cbi-button-action important" type="button" value="<%:Perform reboot%>" onclick="reboot(this)" />
+ 
+ <p class="alert-message" style="display:none">
+ 	<img src="<%=resource%>/icons/loading.gif" alt="<%:Loading%>" style="vertical-align:middle" />
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_uci/changelog.htm b/modules/luci-mod-admin-full/luasrc/view/admin_uci/changelog.htm
+index 4ed4f0a10f..e05ccdece3 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_uci/changelog.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_uci/changelog.htm
+@@ -4,7 +4,7 @@
+ -%>
+ 
+ <% export("uci_changelog", function(changes) -%>
+-<fieldset class="cbi-section">
++<div class="cbi-section">
+ 	<strong><%:Legend:%></strong>
+ 	<div class="uci-change-legend">
+ 		<div class="uci-change-legend-label"><ins>&#160;</ins> <%:Section added%></div>
+@@ -32,9 +32,11 @@
+ 									ret[#ret+1] = "<br />%s.%s.%s+=<strong>%s</strong>"
+ 										%{ r, s, o, util.pcdata(v[i]) }
+ 								end
+-							else
++							elseif v ~= "" then
+ 								ret[#ret+1] = "<br />%s.%s.%s=<strong>%s</strong>"
+ 									%{ r, s, o, util.pcdata(v) }
++							else
++								ret[#ret+1] = "<br /><del>%s.%s.<strong>%s</strong></del>" %{ r, s, o }
+ 							end
+ 						end
+ 					end
+@@ -57,7 +59,7 @@
+ 										ret[#ret+1] = "%s.%s.%s+=<strong>%s</strong><br />"
+ 											%{ r, s, o, util.pcdata(v[i]) }
+ 									end
+-									
++
+ 								else
+ 									ret[#ret+1] = "%s.%s.%s=<strong>%s</strong><br />"
+ 										%{ r, s, o, util.pcdata(v) }
+@@ -75,5 +77,5 @@
+ 
+ 		write(table.concat(ret))
+ 	%></div>
+-</fieldset>
++</div>
+ <%- end) %>
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_uci/changes.htm b/modules/luci-mod-admin-full/luasrc/view/admin_uci/changes.htm
+index c69ec1215a..6282244757 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_uci/changes.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_uci/changes.htm
+@@ -27,21 +27,17 @@ <h2 name="content"><%:Configuration%> / <%:Changes%></h2>
+ 
+ <div class="cbi-page-actions">
+ 	<% if redir_url then %>
+-	<div style="float:left">
+-		<form class="inline" method="get" action="<%=luci.util.pcdata(redir_url)%>">
+-			<input class="cbi-button cbi-button-link" style="float:left; margin:0" type="submit" value="<%:Back%>" />
+-		</form>
+-	</div>
++	<form method="get" action="<%=luci.util.pcdata(redir_url)%>">
++		<input class="cbi-button cbi-button-link" type="submit" value="<%:Back%>" />
++	</form>
+ 	<% end %>
+ 
+-	<div style="text-align:right">
+-		<input class="cbi-button cbi-button-save" type="button" id="apply_button" value="<%:Save & Apply%>" onclick="uci_apply(true); this.blur()" />
+-		<form class="inline" method="post" action="<%=url("admin/uci/revert")%>">
+-			<input type="hidden" name="token" value="<%=token%>" />
+-			<input type="hidden" name="redir" value="<%=pcdata(luci.http.formvalue("redir"))%>" />
+-			<input class="cbi-button cbi-button-reset" type="submit" value="<%:Revert%>" />
+-		</form>
+-	</div>
++	<input class="cbi-button cbi-button-save" type="button" id="apply_button" value="<%:Save & Apply%>" onclick="uci_apply(true); this.blur()" />
++	<form method="post" action="<%=url("admin/uci/revert")%>">
++		<input type="hidden" name="token" value="<%=token%>" />
++		<input type="hidden" name="redir" value="<%=pcdata(luci.http.formvalue("redir"))%>" />
++		<input class="cbi-button cbi-button-reset" type="submit" value="<%:Revert%>" />
++	</form>
+ </div>
+ 
+ <%+footer%>

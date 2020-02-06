@@ -1,0 +1,611 @@
+diff --git a/applications/luci-app-travelmate/luasrc/model/cbi/travelmate/overview_tab.lua b/applications/luci-app-travelmate/luasrc/model/cbi/travelmate/overview_tab.lua
+index a1dcbc6..7b6b965 100644
+--- a/applications/luci-app-travelmate/luasrc/model/cbi/travelmate/overview_tab.lua
++++ b/applications/luci-app-travelmate/luasrc/model/cbi/travelmate/overview_tab.lua
+@@ -18,11 +18,8 @@ m = Map("travelmate", translate("Travelmate"),
+ 	.. translatef("For further information "
+ 	.. "<a href=\"%s\" target=\"_blank\">"
+ 	.. "see online documentation</a>", "https://github.com/openwrt/packages/blob/master/net/travelmate/files/README.md"))
+-m:chain("network")
+-m:chain("firewall")
+-m.apply_on_parse = true
+ 
+-function m.on_apply(self)
++function m.on_after_commit(self)
+ 	luci.sys.call("env -i /etc/init.d/travelmate restart >/dev/null 2>&1")
+ 	luci.http.redirect(luci.dispatcher.build_url("admin", "services", "travelmate"))
+ end
+@@ -31,27 +28,39 @@ end
+ 
+ if uplink == "" then
+ 	ds = m:section(NamedSection, "global", "travelmate", translate("Interface Wizard"))
+-	o = ds:option(Value, "trm_iface", translate("Create Uplink interface"),
+-		translate("Create a new wireless wan uplink interface, configure it to use dhcp and ")
+-		.. translate("add it to the wan zone of the firewall.<br />")
+-		.. translate("This step has only to be done once."))
++
++	o = ds:option(Value, "", translate("Uplink interface"))
+ 	o.datatype = "and(uciname,rangelength(3,15))"
+ 	o.default = trmiface
+ 	o.rmempty = false
+ 
+-	function o.validate(self, value)
+-		if value then
+-			local nwnet = nw:get_network(value)
+-			local zone  = fw:get_zone("wan")
+-			local fwnet = fw:get_zone_by_network(value)
+-			if not nwnet then
+-				nwnet = nw:add_network(value, { proto = "dhcp" })
+-			end
+-			if zone and not fwnet then
+-				fwnet = zone:add_network(value)
++	btn = ds:option(Button, "trm_iface", translate("Create Uplink Interface"),
++		translate("Create a new wireless wan uplink interface, configure it to use dhcp and ")
++		.. translate("add it to the wan zone of the firewall. This step has only to be done once."))
++	btn.inputtitle = translate("Add Interface")
++	btn.inputstyle = "apply"
++	btn.disabled = false
++
++	function btn.write(self, section)
++		local iface = o:formvalue(section)
++		if iface then
++			uci:set("travelmate", section, "trm_iface", iface)
++			uci:save("travelmate")
++			uci:commit("travelmate")
++			local net = nw:add_network(iface, { proto = "dhcp" })
++			if net then
++				nw:save("network")
++				nw:commit("network")
++				local zone = fw:get_zone_by_network("wan")
++				if zone then
++					zone:add_network(iface)
++					fw:save("firewall")
++					fw:commit("firewall")
++				end
+ 			end
++			luci.sys.call("env -i /bin/ubus call network reload >/dev/null 2>&1")
+ 		end
+-		return value
++		luci.http.redirect(luci.dispatcher.build_url("admin", "services", "travelmate"))
+ 	end
+ 	return m
+ end
+diff --git a/applications/luci-app-travelmate/luasrc/model/cbi/travelmate/wifi_add.lua b/applications/luci-app-travelmate/luasrc/model/cbi/travelmate/wifi_add.lua
+index 83011e9..f1adae2 100644
+--- a/applications/luci-app-travelmate/luasrc/model/cbi/travelmate/wifi_add.lua
++++ b/applications/luci-app-travelmate/luasrc/model/cbi/travelmate/wifi_add.lua
+@@ -34,18 +34,14 @@ end
+ wssid.datatype = "rangelength(1,32)"
+ wssid.default = m.hidden.ssid or ""
+ 
+-nobssid = m:field(Flag, "no_bssid", translate("Ignore BSSID"))
+-if m.hidden.ssid == "" then
+-	nobssid.default = nobssid.disabled
+-else
+-	nobssid.default = nobssid.enabled
+-end
+-
+ bssid = m:field(Value, "bssid", translate("BSSID"),
+ 	translatef("The BSSID information '%s' is optional and only required for hidden networks", m.hidden.bssid or ""))
+-bssid:depends("no_bssid", 0)
+ bssid.datatype = "macaddr"
+-bssid.default = m.hidden.bssid or ""
++if m.hidden.ssid == "" then
++	bssid.default = m.hidden.bssid or ""
++else
++	bssid.default = ""
++end
+ 
+ if (tonumber(m.hidden.wep) or 0) == 1 then
+ 	encr = m:field(ListValue, "encryption", translate("Encryption"))
+diff --git a/applications/luci-app-travelmate/luasrc/view/travelmate/stations.htm b/applications/luci-app-travelmate/luasrc/view/travelmate/stations.htm
+index f76b52e..1dacb6e 100644
+--- a/applications/luci-app-travelmate/luasrc/view/travelmate/stations.htm
++++ b/applications/luci-app-travelmate/luasrc/view/travelmate/stations.htm
+@@ -46,8 +46,8 @@ This is free software, licensed under the Apache License, Version 2.0
+       <td style="<%=style%>"><%=bssid%></td>
+       <td style="<%=style%>"><%=encryption%></td>
+       <td class="cbi-value-field" style="width:80px">
+-        <input class="cbi-button cbi-button-up" type="button" value="" onclick="location.href='<%=luci.dispatcher.build_url('admin/services/travelmate/wifiorder')%>?cfg=<%=section%>&dir=up'" alt="<%:Move up%>" title="<%:Move up%>"/>
+-        <input class="cbi-button cbi-button-down" type="button" value="" onclick="location.href='<%=luci.dispatcher.build_url('admin/services/travelmate/wifiorder')%>?cfg=<%=section%>&dir=down'" alt="<%:Move down%>" title="<%:Move down%>"/>
++        <input class="cbi-button cbi-button-up" type="button" value="" onclick="location.href='<%=luci.dispatcher.build_url('admin/services/travelmate/wifiorder')%>?cfg=<%=section%>;dir=up'" alt="<%:Move up%>" title="<%:Move up%>"/>
++        <input class="cbi-button cbi-button-down" type="button" value="" onclick="location.href='<%=luci.dispatcher.build_url('admin/services/travelmate/wifiorder')%>?cfg=<%=section%>;dir=down'" alt="<%:Move down%>" title="<%:Move down%>"/>
+       </td>
+       <td class="cbi-value-field" style="width:150px">
+         <input type="button" class="cbi-button cbi-button-edit" onclick="location.href='<%=luci.dispatcher.build_url('admin/services/travelmate/wifiedit')%>?cfg=<%=section%>'" title="<%:Edit this Uplink%>" value="<%:Edit%>"/>
+diff --git a/applications/luci-app-travelmate/po/ja/travelmate.po b/applications/luci-app-travelmate/po/ja/travelmate.po
+index 535a9db..83cf97f 100644
+--- a/applications/luci-app-travelmate/po/ja/travelmate.po
++++ b/applications/luci-app-travelmate/po/ja/travelmate.po
+@@ -113,6 +113,9 @@ msgstr "無線アップリンク設定の編集"
+ msgid "Edit this Uplink"
+ msgstr "このアップリンクを編集"
+ 
++msgid "Enable 'automatic' mode"
++msgstr "'automatic' モードの有効化"
++
+ msgid "Enable travelmate"
+ msgstr "Travelmate の有効化"
+ 
+@@ -144,6 +147,10 @@ msgstr "TKIP"
+ msgid "Force TKIP and CCMP (AES)"
+ msgstr "TKIP と CCMP (AES)"
+ 
++msgid "Force a manual uplink rescan / reconnect in 'trigger' mode."
++msgstr ""
++"'trigger' モード時に、手動でアップリンクの再スキャンと再接続を行います。"
++
+ msgid ""
+ "Here you'll find the QR codes from all of your configured Access Points. It "
+ "allows you to connect your Android or iOS devices to your router's WiFi "
+@@ -172,9 +179,19 @@ msgstr "インターフェース タイムアウト"
+ msgid "Interface Wizard"
+ msgstr "インターフェース ウィザード"
+ 
++msgid ""
++"Keep travelmate in an active state. Check every n seconds the connection "
++"status, i.e. the uplink availability."
++msgstr ""
++"Travelmate をアクティブ状態で維持します。\"実行間隔\" で設定された時間毎"
++"（秒）に、アップリンクの可用性を確認するために接続状態をチェックします"
++
+ msgid "Last rundate"
+ msgstr "最終実行日時"
+ 
++msgid "Manual Rescan"
++msgstr "手動再スキャン"
++
+ msgid ""
+ "Minimum signal quality threshold as percent for conditional uplink (dis-) "
+ "connections."
+@@ -201,9 +218,6 @@ msgstr "デフォルトの設定が適切でない場合、さらに設定する
+ msgid "Overall Timeout"
+ msgstr "実行間隔"
+ 
+-msgid "Overall retry timeout in seconds."
+-msgstr ""
+-
+ msgid "Overview"
+ msgstr "概要"
+ 
+@@ -244,6 +258,9 @@ msgstr "無線の選択"
+ msgid "Repeat scan"
+ msgstr "再スキャン"
+ 
++msgid "Rescan"
++msgstr "再スキャン"
++
+ msgid "Restrict travelmate to a dedicated radio, e.g. 'radio0'."
+ msgstr "Travelmate が指定された無線に接続するよう制御します。（例: 'radio0'）"
+ 
+@@ -281,10 +298,6 @@ msgid "Station Radio"
+ msgstr "ステーション電波"
+ 
+ msgid ""
+-"The BSSID information '%s' is optional and only required for hidden networks"
+-msgstr ""
+-
+-msgid ""
+ "This form allows you to modify the content of the main firewall "
+ "configuration file (/etc/config/firewall)."
+ msgstr ""
+@@ -319,6 +332,9 @@ msgstr ""
+ "このフォームには、システムログ内の Travelmate に関するメッセージのみが表示さ"
+ "れます。"
+ 
++msgid "Timeout in seconds between retries in 'automatic' mode."
++msgstr "'automatic' モード時に接続を確認または再試行する間隔（秒）です。"
++
+ msgid "Travelmate"
+ msgstr "Travelmate"
+ 
+@@ -390,26 +406,3 @@ msgstr "（不明）"
+ 
+ msgid "n/a"
+ msgstr "利用不可"
+-
+-#~ msgid "Enable 'automatic' mode"
+-#~ msgstr "'automatic' モードの有効化"
+-
+-#~ msgid "Force a manual uplink rescan / reconnect in 'trigger' mode."
+-#~ msgstr ""
+-#~ "'trigger' モード時に、手動でアップリンクの再スキャンと再接続を行います。"
+-
+-#~ msgid ""
+-#~ "Keep travelmate in an active state. Check every n seconds the connection "
+-#~ "status, i.e. the uplink availability."
+-#~ msgstr ""
+-#~ "Travelmate をアクティブ状態で維持します。\"実行間隔\" で設定された時間毎"
+-#~ "（秒）に、アップリンクの可用性を確認するために接続状態をチェックします"
+-
+-#~ msgid "Manual Rescan"
+-#~ msgstr "手動再スキャン"
+-
+-#~ msgid "Rescan"
+-#~ msgstr "再スキャン"
+-
+-#~ msgid "Timeout in seconds between retries in 'automatic' mode."
+-#~ msgstr "'automatic' モード時に接続を確認または再試行する間隔（秒）です。"
+diff --git a/applications/luci-app-travelmate/po/pt-br/travelmate.po b/applications/luci-app-travelmate/po/pt-br/travelmate.po
+index 5ea4d4a..843340b 100644
+--- a/applications/luci-app-travelmate/po/pt-br/travelmate.po
++++ b/applications/luci-app-travelmate/po/pt-br/travelmate.po
+@@ -107,6 +107,9 @@ msgstr ""
+ msgid "Edit this Uplink"
+ msgstr ""
+ 
++msgid "Enable 'automatic' mode"
++msgstr ""
++
+ msgid "Enable travelmate"
+ msgstr ""
+ 
+@@ -136,6 +139,9 @@ msgstr ""
+ msgid "Force TKIP and CCMP (AES)"
+ msgstr ""
+ 
++msgid "Force a manual uplink rescan / reconnect in 'trigger' mode."
++msgstr ""
++
+ msgid ""
+ "Here you'll find the QR codes from all of your configured Access Points. It "
+ "allows you to connect your Android or iOS devices to your router's WiFi "
+@@ -161,9 +167,17 @@ msgstr ""
+ msgid "Interface Wizard"
+ msgstr ""
+ 
++msgid ""
++"Keep travelmate in an active state. Check every n seconds the connection "
++"status, i.e. the uplink availability."
++msgstr ""
++
+ msgid "Last rundate"
+ msgstr ""
+ 
++msgid "Manual Rescan"
++msgstr ""
++
+ msgid ""
+ "Minimum signal quality threshold as percent for conditional uplink (dis-) "
+ "connections."
+@@ -188,9 +202,6 @@ msgstr ""
+ msgid "Overall Timeout"
+ msgstr ""
+ 
+-msgid "Overall retry timeout in seconds."
+-msgstr ""
+-
+ msgid "Overview"
+ msgstr ""
+ 
+@@ -227,6 +238,9 @@ msgstr ""
+ msgid "Repeat scan"
+ msgstr ""
+ 
++msgid "Rescan"
++msgstr ""
++
+ msgid "Restrict travelmate to a dedicated radio, e.g. 'radio0'."
+ msgstr ""
+ 
+@@ -264,10 +278,6 @@ msgid "Station Radio"
+ msgstr ""
+ 
+ msgid ""
+-"The BSSID information '%s' is optional and only required for hidden networks"
+-msgstr ""
+-
+-msgid ""
+ "This form allows you to modify the content of the main firewall "
+ "configuration file (/etc/config/firewall)."
+ msgstr ""
+@@ -292,6 +302,9 @@ msgid ""
+ "messages only."
+ msgstr ""
+ 
++msgid "Timeout in seconds between retries in 'automatic' mode."
++msgstr ""
++
+ msgid "Travelmate"
+ msgstr "Travelmate"
+ 
+diff --git a/applications/luci-app-travelmate/po/ru/travelmate.po b/applications/luci-app-travelmate/po/ru/travelmate.po
+index fad31bb..202f5c8 100644
+--- a/applications/luci-app-travelmate/po/ru/travelmate.po
++++ b/applications/luci-app-travelmate/po/ru/travelmate.po
+@@ -112,6 +112,9 @@ msgstr "Редактировать настройки беспроводной 
+ msgid "Edit this Uplink"
+ msgstr "Редактировать настройки сети"
+ 
++msgid "Enable 'automatic' mode"
++msgstr "Включить режим 'автоматически'"
++
+ msgid "Enable travelmate"
+ msgstr "Включить Travelmate"
+ 
+@@ -143,6 +146,11 @@ msgstr "Назначить TKIP"
+ msgid "Force TKIP and CCMP (AES)"
+ msgstr "Назначить TKIP и CCMP (AES)"
+ 
++msgid "Force a manual uplink rescan / reconnect in 'trigger' mode."
++msgstr ""
++"Принудительно выполнить повторное сканирование/повторное подключение внешних "
++"сетей в режиме 'ручной'."
++
+ msgid ""
+ "Here you'll find the QR codes from all of your configured Access Points. It "
+ "allows you to connect your Android or iOS devices to your router's WiFi "
+@@ -168,9 +176,19 @@ msgstr "Временная задержка интерфейса"
+ msgid "Interface Wizard"
+ msgstr "Помощник настройки интерфейса"
+ 
++msgid ""
++"Keep travelmate in an active state. Check every n seconds the connection "
++"status, i.e. the uplink availability."
++msgstr ""
++"Поддержка TravelMate в активном состоянии.<br />Проверка состояния "
++"соединения каждые n секунд, т.е. доступность внешней сети."
++
+ msgid "Last rundate"
+ msgstr "Дата последнего запуска"
+ 
++msgid "Manual Rescan"
++msgstr "Поиск сети вручную"
++
+ msgid ""
+ "Minimum signal quality threshold as percent for conditional uplink (dis-) "
+ "connections."
+@@ -197,9 +215,6 @@ msgstr ""
+ msgid "Overall Timeout"
+ msgstr "Общее время ожидания"
+ 
+-msgid "Overall retry timeout in seconds."
+-msgstr ""
+-
+ msgid "Overview"
+ msgstr "Главное меню"
+ 
+@@ -240,6 +255,9 @@ msgstr "Выбор Wi-Fi устройства"
+ msgid "Repeat scan"
+ msgstr "Повторить поиск"
+ 
++msgid "Rescan"
++msgstr "Пересканировать"
++
+ msgid "Restrict travelmate to a dedicated radio, e.g. 'radio0'."
+ msgstr "Выделить TravelMate-у конкретное Wi-Fi устройство, например 'radio0'."
+ 
+@@ -277,10 +295,6 @@ msgid "Station Radio"
+ msgstr "Wi-Fi устройство клиента"
+ 
+ msgid ""
+-"The BSSID information '%s' is optional and only required for hidden networks"
+-msgstr ""
+-
+-msgid ""
+ "This form allows you to modify the content of the main firewall "
+ "configuration file (/etc/config/firewall)."
+ msgstr ""
+@@ -315,6 +329,11 @@ msgstr ""
+ "Страница просмотра системного журнала, показаны только события связанные с "
+ "работой утилиты TravelMate."
+ 
++msgid "Timeout in seconds between retries in 'automatic' mode."
++msgstr ""
++"Время ожидания в секундах между повторными попытками соединения в режиме "
++"'автоматически'."
++
+ msgid "Travelmate"
+ msgstr "TravelMate"
+ 
+@@ -385,32 +404,6 @@ msgstr "скрытый"
+ msgid "n/a"
+ msgstr "нет данных"
+ 
+-#~ msgid "Enable 'automatic' mode"
+-#~ msgstr "Включить режим 'автоматически'"
+-
+-#~ msgid "Force a manual uplink rescan / reconnect in 'trigger' mode."
+-#~ msgstr ""
+-#~ "Принудительно выполнить повторное сканирование/повторное подключение "
+-#~ "внешних сетей в режиме 'ручной'."
+-
+-#~ msgid ""
+-#~ "Keep travelmate in an active state. Check every n seconds the connection "
+-#~ "status, i.e. the uplink availability."
+-#~ msgstr ""
+-#~ "Поддержка TravelMate в активном состоянии.<br />Проверка состояния "
+-#~ "соединения каждые n секунд, т.е. доступность внешней сети."
+-
+-#~ msgid "Manual Rescan"
+-#~ msgstr "Поиск сети вручную"
+-
+-#~ msgid "Rescan"
+-#~ msgstr "Пересканировать"
+-
+-#~ msgid "Timeout in seconds between retries in 'automatic' mode."
+-#~ msgstr ""
+-#~ "Время ожидания в секундах между повторными попытками соединения в режиме "
+-#~ "'автоматически'."
+-
+ #~ msgid ""
+ #~ "How long should travelmate wait for a successful wlan interface reload."
+ #~ msgstr ""
+diff --git a/applications/luci-app-travelmate/po/templates/travelmate.pot b/applications/luci-app-travelmate/po/templates/travelmate.pot
+index 8ba1766..32ba788 100644
+--- a/applications/luci-app-travelmate/po/templates/travelmate.pot
++++ b/applications/luci-app-travelmate/po/templates/travelmate.pot
+@@ -96,6 +96,9 @@ msgstr ""
+ msgid "Edit this Uplink"
+ msgstr ""
+ 
++msgid "Enable 'automatic' mode"
++msgstr ""
++
+ msgid "Enable travelmate"
+ msgstr ""
+ 
+@@ -125,6 +128,9 @@ msgstr ""
+ msgid "Force TKIP and CCMP (AES)"
+ msgstr ""
+ 
++msgid "Force a manual uplink rescan / reconnect in 'trigger' mode."
++msgstr ""
++
+ msgid ""
+ "Here you'll find the QR codes from all of your configured Access Points. It "
+ "allows you to connect your Android or iOS devices to your router's WiFi "
+@@ -150,9 +156,17 @@ msgstr ""
+ msgid "Interface Wizard"
+ msgstr ""
+ 
++msgid ""
++"Keep travelmate in an active state. Check every n seconds the connection "
++"status, i.e. the uplink availability."
++msgstr ""
++
+ msgid "Last rundate"
+ msgstr ""
+ 
++msgid "Manual Rescan"
++msgstr ""
++
+ msgid ""
+ "Minimum signal quality threshold as percent for conditional uplink (dis-) "
+ "connections."
+@@ -177,9 +191,6 @@ msgstr ""
+ msgid "Overall Timeout"
+ msgstr ""
+ 
+-msgid "Overall retry timeout in seconds."
+-msgstr ""
+-
+ msgid "Overview"
+ msgstr ""
+ 
+@@ -216,6 +227,9 @@ msgstr ""
+ msgid "Repeat scan"
+ msgstr ""
+ 
++msgid "Rescan"
++msgstr ""
++
+ msgid "Restrict travelmate to a dedicated radio, e.g. 'radio0'."
+ msgstr ""
+ 
+@@ -253,10 +267,6 @@ msgid "Station Radio"
+ msgstr ""
+ 
+ msgid ""
+-"The BSSID information '%s' is optional and only required for hidden networks"
+-msgstr ""
+-
+-msgid ""
+ "This form allows you to modify the content of the main firewall "
+ "configuration file (/etc/config/firewall)."
+ msgstr ""
+@@ -281,6 +291,9 @@ msgid ""
+ "messages only."
+ msgstr ""
+ 
++msgid "Timeout in seconds between retries in 'automatic' mode."
++msgstr ""
++
+ msgid "Travelmate"
+ msgstr ""
+ 
+diff --git a/applications/luci-app-travelmate/root/etc/uci-defaults/40_luci-travelmate b/applications/luci-app-travelmate/root/etc/uci-defaults/40_luci-travelmate
+old mode 100755
+new mode 100644
+diff --git a/collections/luci/Makefile b/collections/luci/Makefile
+index 33f7225..7181102 100644
+--- a/collections/luci/Makefile
++++ b/collections/luci/Makefile
+@@ -11,7 +11,7 @@ LUCI_BASENAME:=luci
+ 
+ LUCI_TITLE:=Standard OpenWrt set including full admin with ppp support and the default Bootstrap theme
+ LUCI_DEPENDS:= \
+-	+uhttpd +uhttpd-mod-ubus +luci-mod-admin-full +luci-theme-bootstrap \
++	+uhttpd +uhttpd-mod-ubus +luci-mod-admin-full \
+ 	+luci-app-firewall +luci-proto-ppp +libiwinfo-lua \
+ 	+rpcd-mod-rrdns
+ 
+diff --git a/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm b/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm
+index ddeb4dc..38900ab 100644
+--- a/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm
++++ b/modules/luci-mod-admin-full/luasrc/view/admin_status/index.htm
+@@ -16,6 +16,9 @@
+ 
+ 	local sysinfo = luci.util.ubus("system", "info") or { }
+ 	local boardinfo = luci.util.ubus("system", "board") or { }
++	local cpuinfo = luci.sys.exec("cat /proc/cpuinfo") or { }
++	local processor = cpuinfo:match("system type\t+: ([^\n]+)") or { }
++	local march = cpuinfo:match("cpu model\t+: ([^\n]+)") or { }
+ 	local unameinfo = nixio.uname() or { }
+ 
+ 	local meminfo = sysinfo.memory or {
+@@ -109,7 +112,7 @@
+ 
+ <%+header%>
+ 
+-<script type="text/javascript" src="<%=resource%>/cbi.js"></script>
++<script type="text/javascript" src="<%=resource%>/cbi.js?v=git-19.338.43082-9e87e69"></script>
+ <script type="text/javascript">//<![CDATA[
+ 	function progressbar(v, m)
+ 	{
+@@ -678,14 +681,17 @@
+ 
+ 	<table width="100%" cellspacing="10">
+ 		<tr><td width="33%"><%:Hostname%></td><td><%=luci.sys.hostname() or "?"%></td></tr>
+-		<tr><td width="33%"><%:Model%></td><td><%=pcdata(boardinfo.model or "?")%> <%=luci.sys.exec("cat /etc/bench.log") or " "%></td></tr>
+-		<tr><td width="33%"><%:Architecture%></td><td><%=pcdata(boardinfo.system or "?")%> x <%=luci.sys.exec("cat /proc/cpuinfo | grep 'processor' | wc -l") or "1"%></td></tr>
++		<tr><td width="33%"><%:Model%></td><td><%=pcdata(boardinfo.model or "?")%></td></tr>
++		<tr><td width="33%"><%:主控芯片%></td><td><%=pcdata(processor or "?")%></td></tr>
++		<tr><td width="33%"><%:构架%></td><td><%=pcdata(march or "?")%></td></tr>
+ 		<tr><td width="33%"><%:Firmware Version%></td><td>
+ 			<%=pcdata(ver.distname)%> <%=pcdata(ver.distversion)%> /
+ 			<%=pcdata(ver.luciname)%> (<%=pcdata(ver.luciversion)%>)
+ 		</td></tr>
+ 		<tr><td width="33%"><%:Kernel Version%></td><td><%=unameinfo.release or "?"%></td></tr>
+ 		<tr><td width="33%"><%:Local Time%></td><td id="localtime">-</td></tr>
++		<tr><td width="33%"><%:固件信息%></td><td ><input type="button" class="cbi-button cbi-button-apply" name="固件信息" value="<%:LunaticUrey_Build_With_Backports%>" onclick="window.open('http://'+window.location.host+'/updatelog.txt')" /></td></tr>
++		<tr><td width="33%"><%:固件更新%></td><td ><input type="button" class="cbi-button cbi-button-apply" name="固件更新" value="<%:加入群号：286754582%>" onclick="window.open('https://jq.qq.com/?_wv=1027&k=5wP6XuX')" /></td></tr>
+ 		<tr><td width="33%"><%:Uptime%></td><td id="uptime">-</td></tr>
+ 		<tr><td width="33%"><%:Load Average%></td><td id="loadavg">-</td></tr>
+ 	</table>
+@@ -791,6 +797,35 @@
+ 		<tr><td><em><%:Collecting data...%></em></td></tr>
+ 	</table>
+ </fieldset>
++<fieldset class="cbi-section">
++	<legend><%:Associated Stations%></legend>
++
++	<table class="cbi-section-table valign-middle" id="wifi_assoc_table">
++		<tr class="cbi-section-table-titles">
++			<th class="cbi-section-table-cell">&#160;</th>
++			<th class="cbi-section-table-cell"><%:Network%></th>
++			<th class="cbi-section-table-cell"><%:MAC-Address%></th>
++			<th class="cbi-section-table-cell"><%:Host%></th>
++			<th class="cbi-section-table-cell"><%:Signal%> / <%:Noise%></th>
++			<th class="cbi-section-table-cell"><%:RX Rate%> / <%:TX Rate%></th>
++		</tr>
++		<tr class="cbi-section-table-row">
++			<td colspan="6"><em><br /><%:Collecting data...%></em></td>
++		</tr>
++	</table>
++</fieldset>
+ <% end %>
+ 
++<%-
++	local incdir = util.libpath() .. "/view/admin_status/index/"
++	if fs.access(incdir) then
++		local inc
++		for inc in fs.dir(incdir) do
++			if inc:match("%.htm$") then
++				include("admin_status/index/" .. inc:gsub("%.htm$", ""))
++			end
++		end
++	end
++-%>
++
+ <%+footer%>
