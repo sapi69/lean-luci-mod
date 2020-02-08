@@ -72,7 +72,7 @@ end
 function action_bandwidth(iface)
 	luci.http.prepare_content("application/json")
 
-	local bwc = io.popen("luci-bwc -i '%s' 2>/dev/null" % iface:gsub("'", ""))
+	local bwc = io.popen("luci-bwc -i %q 2>/dev/null" % iface)
 	if bwc then
 		luci.http.write("[")
 
@@ -90,7 +90,7 @@ end
 function action_wireless(iface)
 	luci.http.prepare_content("application/json")
 
-	local bwc = io.popen("luci-bwc -r '%s' 2>/dev/null" % iface:gsub("'", ""))
+	local bwc = io.popen("luci-bwc -r %q 2>/dev/null" % iface)
 	if bwc then
 		luci.http.write("[")
 
