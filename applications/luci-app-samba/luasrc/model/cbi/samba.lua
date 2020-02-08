@@ -2,7 +2,26 @@
 -- Copyright 2008 Jo-Philipp Wich <jow@openwrt.org>
 -- Licensed to the public under the Apache License 2.0.
 
-m = Map("samba", translate("Network Shares"))
+local state_msg = ""
+local running=(luci.sys.call("pidof smbd > /dev/null") == 0)
+
+if running then
+	state_msg = "<b><font color=\"green\">" .. translate("smbd 运行中") .. "</font></b>"
+else
+	state_msg = "<b><font color=\"red\">" .. translate("smbd 未运行") .. "</font></b>"
+end
+
+local state_msg1 = ""
+local running1=(luci.sys.call("pidof nmbd > /dev/null") == 0)
+
+if running1 then
+	state_msg1 = "<b><font color=\"blue\">" .. translate("nmbd 运行中") .. "</font></b>"
+else
+	state_msg1 = "<b><font color=\"red\">" .. translate("nmbd 未运行") .. "</font></b>"
+end
+
+m = Map("samba", translate("Network Shares"),
+translate("状态：").. state_msg.. state_msg1)
 
 s = m:section(TypedSection, "samba", "Samba")
 s.anonymous = true
@@ -10,6 +29,19 @@ s.anonymous = true
 s:tab("general",  translate("General Settings"))
 s:tab("template", translate("Edit Template"))
 
+enable = s:taboption("general", Flag, "enabled", translate("Enable"), translate("Enable Samba"))
+enable.rmempty = false
+enable.optional = false
+
+function enable.write(self, section, value)
+	if value == "0" then
+		os.execute("/etc/init.d/samba disable")
+		os.execute("/etc/init.d/samba stop")
+	else
+		os.execute("/etc/init.d/samba enable")
+	end
+	Flag.write(self, section, value)
+end
 s:taboption("general", Value, "name", translate("Hostname"))
 s:taboption("general", Value, "description", translate("Description"))
 s:taboption("general", Value, "workgroup", translate("Workgroup"))
@@ -17,10 +49,6 @@ h = s:taboption("general", Flag, "homes", translate("Share home-directories"),
         translate("Allow system users to reach their home directories via " ..
                 "network shares"))
 h.rmempty = false
-a = s:taboption("general", Flag, "autoshare", translate("Auto Share"),
-        translate("Auto share local disk which connected"))
-a.rmempty = false
-a.default = "1"
 
 tmpl = s:taboption("template", Value, "_tmpl",
 	translate("Edit the template that is used for generating the samba configuration."), 
